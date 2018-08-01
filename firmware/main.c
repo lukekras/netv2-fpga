@@ -16,6 +16,10 @@
 #include "processor.h"
 #include "pattern.h"
 
+void * __stack_chk_guard = (void *) (0xDEADBEEF);
+void __stack_chk_fail(void) {
+  printf( "stack fail\n" );
+}
 
 int main(void)
 {
@@ -37,6 +41,7 @@ int main(void)
 
 	ci_prompt();
 
+	/*
 	printf( "hdmi_in1_frame_overflow_read %x\n", hdmi_in1_frame_overflow_read() );
 	printf( "hdmi_in1_dma_frame_size_read %x\n", hdmi_in1_dma_frame_size_read() );
 	printf( "hdmi_in1_dma_slot0_status_read %x\n", hdmi_in1_dma_slot0_status_read() );
@@ -46,13 +51,15 @@ int main(void)
 	printf( "hdmi_in1_dma_ev_status_read %x\n", hdmi_in1_dma_ev_status_read() );
 	printf( "hdmi_in1_dma_ev_pending_read %x\n", hdmi_in1_dma_ev_pending_read() );
 	printf( "hdmi_in1_dma_ev_enable_read %x\n", hdmi_in1_dma_ev_enable_read() );
-
+	*/
 	processor_hdmi_out0_source = VIDEO_IN_HDMI_IN1;  // this is hard-wired in this scenario
 
+	//	int i = 0;
 	while(1) {
+	  //	  printf( "%d ", i++ );
 		processor_service();
 		ci_service();
-		pattern_service();
+		//		pattern_service();
 	}
 
 	return 0;

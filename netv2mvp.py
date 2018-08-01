@@ -28,10 +28,14 @@ from litevideo.output.core import VideoOutCore
 from litevideo.output.hdmi.encoder import Encoder
 
 from litex.soc.interconnect.csr import *
+from litex.soc.interconnect.csr_eventmanager import *
 
 from liteeth.common import *
 
 from migen.genlib.cdc import MultiReg
+
+from litex.soc.cores import spi_flash
+from litex.soc.integration.soc_core import mem_decoder
 
 _io = [
     ("clk50", 0, Pins("J19"), IOStandard("LVCMOS33")),
@@ -215,12 +219,27 @@ _io = [
      Subsignal("rx_er", Pins("B20"), IOStandard("LVCMOS33")),
      Subsignal("int_n", Pins("D21"), IOStandard("LVCMOS33")),
      ),
+
+    # SPI Flash
+    ("spiflash_4x", 0,  # clock needs to be accessed through STARTUPE2
+     Subsignal("cs_n", Pins("T19")),
+     Subsignal("dq", Pins("P22", "R22", "P21", "R21")),
+     IOStandard("LVCMOS33")
+     ),
+    ("spiflash_1x", 0,  # clock needs to be accessed through STARTUPE2
+     Subsignal("cs_n", Pins("T19")),
+     Subsignal("mosi", Pins("P22")),
+     Subsignal("miso", Pins("R22")),
+     Subsignal("wp", Pins("P21")),
+     Subsignal("hold", Pins("R21")),
+     IOStandard("LVCMOS33")
+     ),
 ]
 
 
 class Platform(XilinxPlatform):
     def __init__(self, toolchain="vivado", programmer="vivado"):
-        XilinxPlatform.__init__(self, "xc7a100t-fgg484-2", _io,
+        XilinxPlatform.__init__(self, "xc7a35t-fgg484-2", _io,
                                 toolchain=toolchain)
 
         # NOTE: to do quad-SPI mode, the QE bit has to be set in the SPINOR status register
@@ -372,10 +391,16 @@ class BaseSoC(SoCSDRAM):
 #        "dna",
         "xadc",
         "cpu_or_bridge",
+        "spiflash",
     ]
     csr_map_update(SoCSDRAM.csr_map, csr_peripherals)
 
-    def __init__(self, platform, **kwargs):
+    mem_map = {
+        "spiflash" : 0x20000000, # (default shadow @0xa0000000)
+    }
+    mem_map.update(SoCSDRAM.mem_map)
+
+    def __init__(self, platform, spiflash="spiflash_1x", **kwargs):
         clk_freq = int(100e6)
         SoCSDRAM.__init__(self, platform, clk_freq,
             integrated_rom_size=0x5000,
@@ -384,10 +409,10 @@ class BaseSoC(SoCSDRAM):
             ident="NeTV2 LiteX Base SoC",
             reserve_nmi_interrupt=False,
             cpu_type="vexriscv",
-            cpu_variant="debug",
+#            cpu_variant="debug",
             **kwargs)
 
-        self.comb += self.uart.reset.eq(self.cpu_or_bridge.debug_reset)
+#        self.comb += self.uart.reset.eq(self.cpu_or_bridge.debug_reset)
 
         self.submodules.crg = CRG(platform)
 #        self.submodules.dna = dna.DNA()
@@ -406,7 +431,7 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.timing_settings,
                             controller_settings=ControllerSettings(with_bandwidth=True,
                                                                    cmd_buffer_depth=8,
-                                                                   with_refresh=False))
+                                                                   with_refresh=True))
 
         # common led
         self.sys_led = Signal()
@@ -419,6 +444,27 @@ class BaseSoC(SoCSDRAM):
         sys_counter = Signal(32)
         self.sync += sys_counter.eq(sys_counter + 1)
         self.comb += self.sys_led.eq(sys_counter[26])
+
+        # spi flash
+        spiflash_pads = platform.request(spiflash)
+        spiflash_pads.clk = Signal()
+        self.specials += Instance("STARTUPE2",
+                                  i_CLK=0, i_GSR=0, i_GTS=0, i_KEYCLEARB=0, i_PACK=0,
+                                  i_USRCCLKO=spiflash_pads.clk, i_USRCCLKTS=0, i_USRDONEO=1, i_USRDONETS=1)
+        spiflash_dummy = {
+            "spiflash_1x": 8,  # this is specific to the device populated on the board -- if it changes, must be updated
+            "spiflash_4x": 12, # this is almost certainly wrong
+        }
+        self.submodules.spiflash = spi_flash.SpiFlash(
+                spiflash_pads,
+                dummy=spiflash_dummy[spiflash],
+                div=2)
+        self.add_constant("SPIFLASH_PAGE_SIZE", 256)
+        self.add_constant("SPIFLASH_SECTOR_SIZE", 0x10000)
+        self.add_wb_slave(mem_decoder(self.mem_map["spiflash"]), self.spiflash.bus)
+        self.add_memory_region(
+            "spiflash", self.mem_map["spiflash"] | self.shadow_base, 8*1024*1024)
+
 
 class I2Csnoop(Module, AutoCSR):
     def __init__(self, pads):
@@ -460,12 +506,15 @@ class HDCP(Module, AutoCSR):
         self.hpd = Signal()
         self.hdcp_ena = Signal()
         self.Aksv14_write = Signal()
+        self.Aksv14_write_level = Signal()
         self.ctl_code = Signal(4)
         self.An = Signal(64)
 
         self.Km = CSRStorage(56)
         self.Km_valid = CSRStorage()
         self.hpd_ena = CSRStorage()
+        self.Aksv_mode = CSRStorage()  # set to 0 = auto Aksv; set to 1 then Aksv_manual
+        self.Aksv_manual = CSRStorage() # set to 1 to initiate HDCP rekey based on Aksv updates
 
         self.cipher_stream = Signal(24)
         self.stream_ready = Signal()
@@ -475,6 +524,30 @@ class HDCP(Module, AutoCSR):
 
 #        self.An_debug = Signal(8)
 #        self.Km_debug = Signal(8)
+
+        self.submodules.ev = EventManager()
+        self.ev.aksv = EventSourceProcess()
+        self.ev.finalize()
+
+        # synchronize Aksv14_auto into sysclock domain
+        Aksv14_sys = Signal()
+        self.specials += MultiReg(self.Aksv14_write_level, Aksv14_sys)
+        Aksv14_sys_r = Signal()
+        self.sync += Aksv14_sys_r.eq(Aksv14_sys)
+        self.Aksv14_sys_pulse = Aksv14_sys_pulse = Signal()
+        # derive a pulse to drive the interrupt line when this happens
+        self.sync += Aksv14_sys_pulse.eq(Aksv14_sys & ~Aksv14_sys_r)
+        self.comb += self.ev.aksv.trigger.eq(Aksv14_sys_pulse)
+
+        self.Aksv14_auto = Signal()
+        # install a mux so we can select either auto behavior, or manual override
+        self.comb += [
+            If(self.Aksv_mode.storage == 0,
+               self.Aksv14_auto.eq(self.Aksv14_write)
+            ).Else(
+                self.Aksv14_auto.eq(self.Aksv_manual.storage)
+            )
+        ]
 
         self.specials += [
             Instance("hdcp_mod",
@@ -486,7 +559,7 @@ class HDCP(Module, AutoCSR):
                      i_ctl_code=self.ctl_code,
                      i_line_end=self.line_end,
                      i_hpd=self.hpd,
-                     i_Aksv14_write = self.Aksv14_write,
+                     i_Aksv14_write = self.Aksv14_auto,
                      i_An = self.An,
                      i_Km = self.Km.storage,
                      i_Km_valid = self.Km_valid.storage,
@@ -572,6 +645,11 @@ class TimingDelayRGB(Module):
             self.comb += getattr(self.source, name).eq(s)
 
 class VideoOverlaySoC(BaseSoC):
+ #   mem_map = {
+ #       "vexriscv_debug": 0xf00f0000,
+ #   }
+ #   mem_map.update(BaseSoC.mem_map)
+
     csr_peripherals = [
         "hdmi_core_out0",
         "hdmi_in0",
@@ -591,11 +669,13 @@ class VideoOverlaySoC(BaseSoC):
 
     interrupt_map = {
         "hdmi_in1": 3,
+        "hdcp" : 4,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 
     def __init__(self, platform, *args, **kwargs):
-        BaseSoC.__init__(self, platform, csr_data_width=32, *args, **kwargs)
+#        BaseSoC.__init__(self, platform, csr_data_width=32, *args, **kwargs)
+        BaseSoC.__init__(self, platform, *args, **kwargs)
 
         # # #
 
@@ -662,7 +742,7 @@ class VideoOverlaySoC(BaseSoC):
         ########## hdmi in 1
         hdmi_in1_pads = platform.request("hdmi_in", 1)
         self.submodules.hdmi_in1_freq = FrequencyMeter(period=self.clk_freq)
-        self.submodules.hdmi_in1 = HDMIIn(hdmi_in1_pads,
+        self.submodules.hdmi_in1 = hdmi_in1 = HDMIIn(hdmi_in1_pads,
                                          self.sdram.crossbar.get_port(mode="write"),
                                          fifo_depth=1024,
                                          device="xc7",
@@ -772,6 +852,7 @@ class VideoOverlaySoC(BaseSoC):
         self.sync.pix_o += [
             Aksv14_r.eq(Aksv14),
             hdcp.Aksv14_write.eq(Aksv14 & ~Aksv14_r), # should be a rising-edge strobe only
+            hdcp.Aksv14_write_level.eq(Aksv14),
 #            hdcp.hpd.eq(hdmi_in0.edid._hpd_notif.status),
             hdcp.hdcp_ena.eq(hdmi_in0.decode_terc4.encrypting_video | hdmi_in0.decode_terc4.encrypting_data),
             hdcp.hpd.eq(hdmi_in0_pads.hpd_notif),
@@ -899,6 +980,9 @@ class VideoOverlaySoC(BaseSoC):
             self.submodules.etherbone = LiteEthEtherbone(core.udp, 1234, mode="master", cd="etherbone")
             self.add_wb_master(self.etherbone.wishbone.bus)
 
+        # Attach the VexRiscv debug bus to RAM
+#        self.register_mem("vexriscv_debug", self.mem_map["vexriscv_debug"], self.cpu_or_bridge.debug_bus, 0x1000)
+
         self.platform.add_false_path_constraints(
            self.crg.cd_sys.clk,
            self.crg.cd_eth.clk
@@ -927,46 +1011,93 @@ class VideoOverlaySoC(BaseSoC):
         self.comb += overlay_raw.eq(Cat(encoder_blu.out,encoder_grn.out,encoder_red.out))
 
         analyzer_signals = [
-#            main_raw,
-#            overlay_raw,
-#            self.hdcp.hdcp_debug,
-#            self.hdcp.le_debug,
-#            self.hdcp.cipher_debug,
-#            rect_on,
-            rectangle.hcounter,
-            rectangle.vcounter,
-            self.hdcp.cipher_stream,
-            pix_aggregate,
-            self.hdcp.stream_ready,
-            self.hdcp.hdcp_ena,
-            hdmi_in0.decode_terc4.encrypting_video,
-            hdmi_in0.decode_terc4.encrypting_data,
-            self.hdcp.de,
-            self.hdcp.hsync,
-            self.hdcp.vsync,
+            self.hdcp.Aksv14_sys_pulse,
+            self.hdcp.Aksv14_auto,
             self.hdcp.Aksv14_write,
-            self.hdcp.hpd,
-            self.hdcp.ctl_code,
-            self.hdcp.line_end,
-            hdcp.Km_valid.storage,
-#            t4d_aggregate,
-#            self.hdcp.Km_debug,
-#            self.hdcp.An_debug,
-#            sanity
+            self.hdcp.Aksv_mode.storage,
+            self.hdcp.Aksv_manual.storage,
+            self.hdmi_in1.dma.current_address,
+            self.hdmi_in1.dma.reset_words,
+            self.hdmi_in1.dma.fsm,
+            self.hdmi_in1.dma.frame.ready,
+            # self.sdram.controller.refresher.fsm,
+            # self.sdram.controller.multiplexer.fsm,
+            self.sdram.controller.refresher.timer.done,
+            # self.wishbone_bridge.fsm,
+            # self.sdram.controller.bank_machines[0].fsm,
+            # self.sdram.controller.bank_machines[1].fsm,
+            # self.sdram.controller.bank_machines[2].fsm,
+            # self.sdram.controller.bank_machines[3].fsm,
+            # self.sdram.controller.bank_machines[4].fsm,
+            # self.sdram.controller.bank_machines[5].fsm,
+            # self.sdram.controller.bank_machines[6].fsm,
+            # self.sdram.controller.bank_machines[7].fsm,
+            # self.sdram.controller.bank_machines[0].has_openrow,
+            # self.sdram.controller.bank_machines[1].has_openrow,
+            # self.sdram.controller.bank_machines[2].has_openrow,
+            # self.sdram.controller.bank_machines[3].has_openrow,
+            # self.sdram.controller.bank_machines[4].has_openrow,
+            # self.sdram.controller.bank_machines[5].has_openrow,
+            # self.sdram.controller.bank_machines[6].has_openrow,
+            # self.sdram.controller.bank_machines[7].has_openrow,
+            # self.sdram.controller.bank_machines[0].activate,
+            # self.sdram.controller.bank_machines[1].activate,
+            # self.sdram.controller.bank_machines[2].activate,
+            # self.sdram.controller.bank_machines[3].activate,
+            # self.sdram.controller.bank_machines[4].activate,
+            # self.sdram.controller.bank_machines[5].activate,
+            # self.sdram.controller.bank_machines[6].activate,
+            # self.sdram.controller.bank_machines[7].activate,
+            # self.sdram.controller.bank_machines[0].cas,
+            # self.sdram.controller.bank_machines[1].cas,
+            # self.sdram.controller.bank_machines[2].cas,
+            # self.sdram.controller.bank_machines[3].cas,
+            # self.sdram.controller.bank_machines[4].cas,
+            # self.sdram.controller.bank_machines[5].cas,
+            # self.sdram.controller.bank_machines[6].cas,
+            # self.sdram.controller.bank_machines[7].cas,
+
+
+            # #            main_raw,
+# #            overlay_raw,
+# #            self.hdcp.hdcp_debug,
+# #            self.hdcp.le_debug,
+# #            self.hdcp.cipher_debug,
+# #            rect_on,
+#             rectangle.hcounter,
+#             rectangle.vcounter,
+#             self.hdcp.cipher_stream,
+#             pix_aggregate,
+#             self.hdcp.stream_ready,
+#             self.hdcp.hdcp_ena,
+#             hdmi_in0.decode_terc4.encrypting_video,
+#             hdmi_in0.decode_terc4.encrypting_data,
+#             self.hdcp.de,
+#             self.hdcp.hsync,
+#             self.hdcp.vsync,
+#             self.hdcp.Aksv14_write,
+#             self.hdcp.hpd,
+#             self.hdcp.ctl_code,
+#             self.hdcp.line_end,
+#             hdcp.Km_valid.storage,
+# #            t4d_aggregate,
+# #            self.hdcp.Km_debug,
+# #            self.hdcp.An_debug,
+# #            sanity
         ]
         self.platform.add_false_path_constraints( # for I2C snoop -> HDCP, and also covers logic analyzer path when configured
            self.crg.cd_eth.clk,
            self.hdmi_in0.clocking.cd_pix_o.clk
         )
 #        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 128, cd="pix_o", cd_ratio=1, edges=True, hitcountbits=16, triggers=2)
-        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, cd="pix_o", trigger_depth=16)
+        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 128, cd="sys")
 
 #        self.comb += [
 #            hitcount1.eq(self.analyzer.frontend.trigger.hit_counter),
 #            hitcount2.eq(self.analyzer.frontend.trigger2.hit_counter)
 #        ]
-    #        self.sync += platform.request("fpga_led4", 0).eq(self.analyzer.storage.sink.hit)  # OV0 red
-        self.sync += platform.request("fpga_led4", 0).eq(0)  # OV0 red
+        self.sync += platform.request("fpga_led4", 0).eq(self.sdram.controller.refresher.timer.done)  # OV0 red
+     #   self.sync += platform.request("fpga_led4", 0).eq(0)  # OV0 red
 
     def do_exit(self, vns):
         self.analyzer.export_csv(vns, "test/analyzer.csv")

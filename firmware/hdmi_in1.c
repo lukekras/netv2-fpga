@@ -21,7 +21,7 @@ int hdmi_in1_fb_index;
 #define FRAMEBUFFER_MASK (FRAMEBUFFER_COUNT - 1)
 
 //#define HDMI_IN1_FRAMEBUFFERS_BASE (0x00000000 + 0x100000)
-#define HDMI_IN1_FRAMEBUFFERS_BASE (0x04018000)
+#define HDMI_IN1_FRAMEBUFFERS_BASE (0x04018000 * 2)
 #define HDMI_IN1_FRAMEBUFFERS_SIZE (1920*1080*4)
 
 //#define CLEAN_COMMUTATION
@@ -40,8 +40,11 @@ static int hdmi_in1_next_fb_index;
 
 static int hdmi_in1_hres, hdmi_in1_vres;
 
+unsigned int update_video = 1;
+
 extern void processor_update(void);
 
+unsigned int isr_iter = 0;
 #ifdef HDMI_IN1_INTERRUPT
 void hdmi_in1_isr(void)
 {
@@ -50,6 +53,21 @@ void hdmi_in1_isr(void)
 	int expected_length;
 	unsigned int address_min, address_max;
 
+	hdmi_in1_dma_ev_pending_write(1);
+#if 1
+	//	if( (isr_iter & 0xF) == 0 )
+	//	  printf("%d ", isr_iter++);
+	printf("%d ", isr_iter++);
+#endif
+#if 0
+	unsigned int mask;
+	mask = irq_getmask();
+	mask &= ~(1 << HDMI_IN1_INTERRUPT);
+	printf( "irq mask: %x\n", mask );
+	irq_setmask(mask);
+	return;
+#endif
+				      
 	address_min = HDMI_IN1_FRAMEBUFFERS_BASE & 0x0fffffff;
 	address_max = address_min + HDMI_IN1_FRAMEBUFFERS_SIZE*FRAMEBUFFER_COUNT;
 	if((hdmi_in1_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING)
@@ -79,35 +97,47 @@ void hdmi_in1_isr(void)
 	if(hdmi_in1_dma_slot0_status_read() == DVISAMPLER_SLOT_PENDING) {
 		length = hdmi_in1_dma_slot0_address_read() - (hdmi_in1_framebuffer_base(hdmi_in1_fb_slot_indexes[0]) & 0x0fffffff);
 		if(length == expected_length) {
+		  if( update_video == 1 ) {
 			fb_index = hdmi_in1_fb_slot_indexes[0];
 			hdmi_in1_fb_slot_indexes[0] = hdmi_in1_next_fb_index;
 			hdmi_in1_next_fb_index = (hdmi_in1_next_fb_index + 1) & FRAMEBUFFER_MASK;
+		  }
 		} else {
 #ifdef DEBUG
 			printf("hdmi_in1: slot0: unexpected frame length: %d\r\n", length);
 #endif
 		}
-		hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_slot_indexes[0]));
-		hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
+		if( update_video == 1 ) {
+		  hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_slot_indexes[0]));
+		  hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
+		}
 	}
 	if(hdmi_in1_dma_slot1_status_read() == DVISAMPLER_SLOT_PENDING) {
 		length = hdmi_in1_dma_slot1_address_read() - (hdmi_in1_framebuffer_base(hdmi_in1_fb_slot_indexes[1]) & 0x0fffffff);
 		if(length == expected_length) {
+		  if( update_video == 1 ) {
 			fb_index = hdmi_in1_fb_slot_indexes[1];
 			hdmi_in1_fb_slot_indexes[1] = hdmi_in1_next_fb_index;
 			hdmi_in1_next_fb_index = (hdmi_in1_next_fb_index + 1) & FRAMEBUFFER_MASK;
+		  }
 		} else {
 #ifdef DEBUG
 			printf("hdmi_in1: slot1: unexpected frame length: %d\r\n", length);
 #endif
 		}
-		hdmi_in1_dma_slot1_address_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_slot_indexes[1]));
-		hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
+		if( update_video == 1 ) {
+		  hdmi_in1_dma_slot1_address_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_slot_indexes[1]));
+		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
+		}
 	}
 
-	if(fb_index != -1)
+	if(fb_index != -1) {
+	  if( update_video == 1 ) {
 		hdmi_in1_fb_index = fb_index;
+	  }
+	}
 	processor_update();
+	hdmi_in1_dma_ev_enable_write(1);
 
 }
 #endif
@@ -120,7 +150,7 @@ void hdmi_in1_init_video(int hres, int vres)
 	hdmi_in1_clocking_mmcm_reset_write(1);
 	hdmi_in1_connected = hdmi_in1_locked = 0;
 	hdmi_in1_hres = hres; hdmi_in1_vres = vres;
-
+#if 1
 #ifdef  HDMI_IN1_INTERRUPT
 	unsigned int mask;
 
@@ -144,7 +174,8 @@ void hdmi_in1_init_video(int hres, int vres)
 	printf( "irq mask: %x\n", mask );
 	irq_setmask(mask);
 
-	hdmi_in1_fb_index = 3;
+	hdmi_in1_fb_index = 1;
+#endif
 #endif
 }
 

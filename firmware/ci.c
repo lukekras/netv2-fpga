@@ -11,6 +11,8 @@
 #include <console.h>
 #include "flags.h"
 
+#include <irq.h>
+
 #include "asm.h"
 #include "config.h"
 #include "hdmi_in0.h"
@@ -24,6 +26,11 @@
 #include "dump.h"
 #include "edid.h"
 #include "km.h"
+
+extern unsigned int update_video;
+
+static int hdmi_in1_fb_slot_indexes[2];
+static int hdmi_in1_next_fb_index;
 
 int status_enabled;
 extern const struct video_timing video_modes[];
@@ -565,6 +572,58 @@ void ci_prompt(void)
 	wprintf("RUNTIME>");
 }
 
+void init_rect(void);
+
+void init_rect(void) {
+  wprintf("enabling video_out0 writing\r\n");
+  hdmi_core_out0_initiator_enable_write(0);
+
+#if 1		  // 1 for 1080, 0 for 720
+  const struct video_timing *m = &video_modes[12]; // change to 12 for 1080p, 9 for 720p
+  m = &video_modes[12];
+#else
+  const struct video_timing *m = &video_modes[9];
+  m = &video_modes[9];
+#endif
+  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
+  //		  hdmi_core_out0_initiator_base_write(0x0);
+		  
+  hdmi_core_out0_initiator_hres_write(m->h_active);
+  hdmi_core_out0_initiator_hsync_start_write(m->h_active + m->h_sync_offset);
+  hdmi_core_out0_initiator_hsync_end_write(m->h_active + m->h_sync_offset + m->h_sync_width);
+  hdmi_core_out0_initiator_hscan_write(m->h_active + m->h_blanking - 1);
+  hdmi_core_out0_initiator_vres_write(m->v_active);
+  hdmi_core_out0_initiator_vsync_start_write(m->v_active + m->v_sync_offset);
+  hdmi_core_out0_initiator_vsync_end_write(m->v_active + m->v_sync_offset + m->v_sync_width);
+  hdmi_core_out0_initiator_vscan_write(m->v_active + m->v_blanking);
+  
+  hdmi_core_out0_initiator_length_write(m->h_active*m->v_active*4);
+
+#if 1		  
+  rectangle_hrect_start_write(10);
+  rectangle_hrect_end_write(1915);
+  rectangle_vrect_start_write(10);
+  rectangle_vrect_end_write(1070);
+  rectangle_rect_thresh_write(48); // "reasonable" default
+#else
+  rectangle_hrect_start_write(10);
+  rectangle_hrect_end_write(1270);
+  rectangle_vrect_start_write(10);
+  rectangle_vrect_end_write(710);
+  rectangle_rect_thresh_write(128); // "reasonable" default
+#endif
+  
+  wprintf("out hres %d, hscan %d\r\n", hdmi_core_out0_initiator_hres_read(), hdmi_core_out0_initiator_hscan_read());
+  wprintf("out vres %d, vscan %d\r\n", hdmi_core_out0_initiator_vres_read(), hdmi_core_out0_initiator_vscan_read());
+  wprintf("out length %d\r\n", hdmi_core_out0_initiator_length_read());
+  
+  hdmi_core_out0_dma_delay_base_write(80);  // this helps align the DMA transfer through various delay offsets
+  // empricially determined, will shift around depending on what you do in the overlay video pipe, e.g.
+  // ycrcb422 vs rgb
+  
+  hdmi_core_out0_initiator_enable_write(1);
+}
+
 void ci_service(void)
 {
 	char *str;
@@ -792,52 +851,7 @@ void ci_service(void)
 			if(found == 0)
 				wprintf("%s port has no EDID capabilities\r\n", token);
 		} else if(strcmp(token, "rect") == 0 ) {
-		  wprintf("enabling video_out0 writing\r\n");
-		  hdmi_core_out0_initiator_enable_write(0);
-
-#if 1		  // 1 for 1080, 0 for 720
-		  const struct video_timing *m = &video_modes[12]; // change to 12 for 1080p, 9 for 720p
-		  m = &video_modes[12];
-#else
-		  const struct video_timing *m = &video_modes[9];
-		  m = &video_modes[9];
-#endif
-		  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-		  
-		  hdmi_core_out0_initiator_hres_write(m->h_active);
-		  hdmi_core_out0_initiator_hsync_start_write(m->h_active + m->h_sync_offset);
-		  hdmi_core_out0_initiator_hsync_end_write(m->h_active + m->h_sync_offset + m->h_sync_width);
-		  hdmi_core_out0_initiator_hscan_write(m->h_active + m->h_blanking - 1);
-		  hdmi_core_out0_initiator_vres_write(m->v_active);
-		  hdmi_core_out0_initiator_vsync_start_write(m->v_active + m->v_sync_offset);
-		  hdmi_core_out0_initiator_vsync_end_write(m->v_active + m->v_sync_offset + m->v_sync_width);
-		  hdmi_core_out0_initiator_vscan_write(m->v_active + m->v_blanking);
-		  
-		  hdmi_core_out0_initiator_length_write(m->h_active*m->v_active*4);
-
-#if 1		  
-		  rectangle_hrect_start_write(10);
-		  rectangle_hrect_end_write(1915);
-		  rectangle_vrect_start_write(10);
-		  rectangle_vrect_end_write(1070);
-		  rectangle_rect_thresh_write(128); // "reasonable" default
-#else
-		  rectangle_hrect_start_write(10);
-		  rectangle_hrect_end_write(1270);
-		  rectangle_vrect_start_write(10);
-		  rectangle_vrect_end_write(710);
-		  rectangle_rect_thresh_write(128); // "reasonable" default
-#endif
-
-		  wprintf("out hres %d, hscan %d\r\n", hdmi_core_out0_initiator_hres_read(), hdmi_core_out0_initiator_hscan_read());
-		  wprintf("out vres %d, vscan %d\r\n", hdmi_core_out0_initiator_vres_read(), hdmi_core_out0_initiator_vscan_read());
-		  wprintf("out length %d\r\n", hdmi_core_out0_initiator_length_read());
-
-		  hdmi_core_out0_dma_delay_base_write(80);  // this helps align the DMA transfer through various delay offsets
-		  // empricially determined, will shift around depending on what you do in the overlay video pipe, e.g.
-		  // ycrcb422 vs rgb
-		  
-		  hdmi_core_out0_initiator_enable_write(1);
+		  init_rect();
 		} else if(strcmp(token, "setrect") == 0 ) {
 		  const struct video_timing *m = &video_modes[12];
 		  m = &video_modes[12];
@@ -858,7 +872,19 @@ void ci_service(void)
 		  wprintf( "xadc: %d mC\n", ((unsigned int)xadc_temperature_read() * 503975) / 4096 - 273150 );
 		} else if( strcmp(token, "km") == 0 ) {
 		  derive_km();
-		} else if( strcmp(token, "dumpe" == 0 ) ) {
+		} else if( strcmp(token, "pause" ) == 0 ) {
+		  if( update_video == 1 ) {
+		    update_video = 0;
+		    wprintf( "stopping video\n" );
+		  } else {
+		    update_video = 1;
+		    wprintf( "starting video\n" );
+		  }
+		} else if( strcmp(token, "hpdforce") == 0 ) {
+		  hdcp_hpd_ena_write(1);
+		} else if( strcmp(token, "hpdrelax") == 0 ) {
+		  hdcp_hpd_ena_write(0);
+		} else if( strcmp(token, "dumpe") == 0 ) {
 		  int i ;
 		  for( i = 0; i < 256; i++ ) {
 		    if( (i % 16) == 0 ) {
@@ -868,8 +894,9 @@ void ci_service(void)
 		    // may need to add a delay to allow write->read access time
 		    wprintf( "%02x ", i2c_snoop_edid_snoop_dat_read() );
 		  }
-		} else
-			help_debug();
+		} else {
+		  help_debug();
+		}
 	} else if (strncmp(token, "dummy", 5) == 0) {
 	  was_dummy = 1;
 	} else {
@@ -882,12 +909,6 @@ void ci_service(void)
 }
 
 /*
-  else if( strcmp(token, "hpdforce" == 0) ) {
-		  hdcp_hpd_ena_write(1);
-		} else if( strcmp(token, "hpdrelax" == 0) ) {
-		  hdcp_hpd_ena_write(0);
-		}
-
 		else if (strcmp(token, "dvimode0") == 0 ) {
 		  hdmi_in0_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode0") == 0 ) {
@@ -900,5 +921,34 @@ void ci_service(void)
 		else if(strcmp(token, "dma") == 0 ) {
 		wprintf("initiating DMA on HDMI1\r\n");
 		  hdmi_in1_dma_ev_enable_write(0x3);
+		}
+
+ else if( strcmp(token, "inc" == 0 ) ) {
+		  int hres = 1920;
+		  int vres = 1080;
+		  unsigned int mask;
+		  
+		  hdmi_in1_dma_frame_size_write(hres*vres*4);
+		  hdmi_in1_fb_slot_indexes[0] = 0;
+		  hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(0));
+		  printf( "slot0 %x\n", hdmi_in1_framebuffer_base(0) );
+		  hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
+
+#if 0
+		  hdmi_in1_fb_slot_indexes[1] = 1;
+		  hdmi_in1_dma_slot1_address_write(hdmi_in1_framebuffer_base(1));
+		  printf( "slot1 %x\n", hdmi_in1_framebuffer_base(1) );
+		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
+		  hdmi_in1_next_fb_index = 2;
+#endif
+		  
+		  hdmi_in1_dma_ev_pending_write(hdmi_in1_dma_ev_pending_read());
+		  //		  hdmi_in1_dma_ev_enable_write(0x3);
+		  hdmi_in1_dma_ev_enable_write(0x1);
+
+		  mask = irq_getmask();
+		  mask |= 1 << HDMI_IN1_INTERRUPT;
+		  printf( "irq mask: %x\n", mask );
+		  irq_setmask(mask);
 		}
 */

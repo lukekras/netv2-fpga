@@ -4,6 +4,7 @@
 
 #include "hdmi_in0.h"
 #include "hdmi_in1.h"
+#include "km.h"
 void isr(void);
 void isr(void)
 {
@@ -21,6 +22,11 @@ void isr(void)
 #ifdef HDMI_IN1_INTERRUPT
 	if(irqs & (1 << HDMI_IN1_INTERRUPT)) {
 		hdmi_in1_isr();
+	}
+#endif
+#ifdef HDCP_INTERRUPT
+	if(irqs & (1 << HDCP_INTERRUPT)) {
+		hdcp_isr();
 	}
 #endif
 }

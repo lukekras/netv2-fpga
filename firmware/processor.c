@@ -15,6 +15,7 @@
 #include "edid.h"
 #include "mmcm.h"
 #include "processor.h"
+#include "km.h"
 
 /*
  ----------------->>> Time ----------->>>
@@ -535,6 +536,7 @@ void processor_init(void)
 	pattern = COLOR_BAR_PATTERN;
 }
 
+extern void init_rect(void);
 void processor_start(int mode)
 {
 	const struct video_timing *m = &video_modes[mode];
@@ -599,6 +601,11 @@ void processor_start(int mode)
 	hdmi_in1_edid_hpd_en_write(1);
 #endif
 
+#ifdef CSR_HDCP_BASE
+	hdcp_init();
+	init_rect();
+#endif
+
 }
 
 void processor_set_hdmi_out0_source(int source) {
@@ -624,21 +631,23 @@ char * processor_get_source_name(int source) {
 
 void processor_update(void)
 {
+  //  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
   
 #ifdef CSR_HDMI_OUT0_BASE
 	/*  hdmi_out0 */
 #ifdef CSR_HDMI_IN0_BASE
-	if(processor_hdmi_out0_source == VIDEO_IN_HDMI_IN0)
-		hdmi_out0_core_initiator_base_write(hdmi_in0_framebuffer_base(hdmi_in0_fb_index));
+  if(processor_hdmi_out0_source == VIDEO_IN_HDMI_IN0)
+    hdmi_out0_core_initiator_base_write(hdmi_in0_framebuffer_base(hdmi_in0_fb_index));
 #endif
 #ifdef CSR_HDMI_IN1_BASE
-	if(processor_hdmi_out0_source == VIDEO_IN_HDMI_IN1)
-		hdmi_out0_core_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
+  if(processor_hdmi_out0_source == VIDEO_IN_HDMI_IN1)
+    hdmi_out0_core_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
 #endif
-	if(processor_hdmi_out0_source == VIDEO_IN_PATTERN)
-		hdmi_out0_core_initiator_base_write(pattern_framebuffer_base());
+  if(processor_hdmi_out0_source == VIDEO_IN_PATTERN)
+    hdmi_out0_core_initiator_base_write(pattern_framebuffer_base());
 #endif
 
+#if 0
 #ifdef CSR_HDMI_OUT1_BASE
 #error "not here!"
 	/*  hdmi_out1 */
@@ -670,6 +679,7 @@ void processor_update(void)
 #endif
 	if(processor_encoder_source == VIDEO_IN_PATTERN)
 		encoder_reader_base_write(pattern_framebuffer_base());
+#endif
 #endif
 }
 

@@ -391,23 +391,29 @@ const unsigned long long hdcp_master[40][40] =
 #define SOURCE 1
 #define SINK 0
 
+#define DEBUG 0
+
 void compute_keys( unsigned long Ksv_hi, unsigned long Ksv_lo, unsigned int source, unsigned long long *key ) {
   int i, j;
   //  unsigned long long key[40]; 
   int num;
 
   unsigned long long Ksv = (unsigned long long) Ksv_hi << 32 | Ksv_lo;
-  
+
+#if DEBUG
   printf("ksv 0x%08x%08x\n", (unsigned int) (Ksv >> 32), (unsigned int) Ksv);
+#endif
   
   for( i = 0; i < 40; i++ ) {
     key[i] = 0LL;
   }
+#if DEBUG
   if( source == SOURCE ) {
     wprintf( "source \n" );
   } else {
     wprintf( "sink \n" );
   }
+#endif
     
   num = 0;
   //  printf( "key array for 0x%010llx, least bit first\n", Ksv );
@@ -424,12 +430,14 @@ void compute_keys( unsigned long Ksv_hi, unsigned long Ksv_lo, unsigned int sour
 	//	key[j] %= 72057594037927936LL;
 	key[j] &= 0xFFFFFFFFFFFFFFLL;
       }
-      wprintf("0x%08x%08x ", (long) (key[i] >> 32), (long) key[i]);
-      wprintf("\n");
+      //      wprintf("0x%08x%08x ", (long) (key[i] >> 32), (long) key[i]);
+      //      wprintf("\n");
     }
     Ksv >>= 1LL;
   }
+#if DEBUG
   wprintf ("KSV had %d ones\n", num);
+#endif
   //  for( i = 0; i < 40; i++ ) {
   //    printf("0x%08x%08x ", (long) (key[i] >> 32), (long) key[i]);
   //  }

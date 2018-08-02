@@ -55,9 +55,9 @@ void hdmi_in1_isr(void)
 
 	hdmi_in1_dma_ev_pending_write(1);
 #if 1
-	//	if( (isr_iter & 0xF) == 0 )
-	//	  printf("%d ", isr_iter++);
-	printf("%d ", isr_iter++);
+	if( (isr_iter % 30) == 0 )
+	  printf("%d ", isr_iter);
+	isr_iter++;
 #endif
 #if 0
 	unsigned int mask;

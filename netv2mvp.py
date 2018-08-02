@@ -396,8 +396,8 @@ class CRG(Module):
 class BaseSoC(SoCSDRAM):
     csr_peripherals = [
         "ddrphy",
-        "dna",
         "xadc",
+        "dna",
         "cpu_or_bridge",
         "spiflash",
     ]
@@ -405,6 +405,7 @@ class BaseSoC(SoCSDRAM):
 
     mem_map = {
         "spiflash" : 0x20000000, # (default shadow @0xa0000000)
+#        "vexriscv_debug": 0xf00f0000,
     }
     mem_map.update(SoCSDRAM.mem_map)
 
@@ -419,7 +420,7 @@ class BaseSoC(SoCSDRAM):
             cpu_variant="debug",
             **kwargs)
 
-        self.comb += self.uart.reset.eq(self.cpu_or_bridge.debug_reset)
+        self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu_or_bridge.debug_bus, 0x10)
 
         self.submodules.crg = CRG(platform)
         self.submodules.dna = dna.DNA()
@@ -635,11 +636,6 @@ class TimingDelayRGB(Module):
             self.comb += getattr(self.source, name).eq(s)
 
 class VideoOverlaySoC(BaseSoC):
-
-    mem_map = {
-        "vexriscv_debug" : 0xf00f0000,
-    }
-    mem_map.update(BaseSoC.mem_map)
 
     csr_peripherals = [
         "hdmi_core_out0",

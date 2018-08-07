@@ -10,10 +10,12 @@ void isr(void)
 {
 	unsigned int irqs;
 
+	hdcp_debug_write(1);
 	irqs = irq_pending() & irq_getmask();
 
-	if(irqs & (1 << UART_INTERRUPT))
+	if(irqs & (1 << UART_INTERRUPT)) {
 		uart_isr();
+	}
 
 #ifdef CSR_HDMI_IN0_INTERRUPT
 	if(irqs & (1 << HDMI_IN0_INTERRUPT))
@@ -21,7 +23,7 @@ void isr(void)
 #endif
 #ifdef HDMI_IN1_INTERRUPT
 	if(irqs & (1 << HDMI_IN1_INTERRUPT)) {
-		hdmi_in1_isr();
+	  hdmi_in1_isr();
 	}
 #endif
 #ifdef HDCP_INTERRUPT
@@ -29,4 +31,6 @@ void isr(void)
 		hdcp_isr();
 	}
 #endif
+
+	hdcp_debug_write(0);
 }

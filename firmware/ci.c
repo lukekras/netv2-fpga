@@ -585,6 +585,7 @@ void init_rect(void) {
   const struct video_timing *m = &video_modes[9];
   m = &video_modes[9];
 #endif
+  
   hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
   //		  hdmi_core_out0_initiator_base_write(0x0);
 		  
@@ -624,6 +625,7 @@ void init_rect(void) {
   hdmi_core_out0_initiator_enable_write(1);
 }
 
+static int ci_iters = 0;
 void ci_service(void)
 {
 	char *str;
@@ -638,9 +640,12 @@ void ci_service(void)
 	  str = (char *) dummy;
 	}
 
+	ci_iters++;
 	token = get_token(&str);
 
-    if(strcmp(token, "help") == 0) {
+	if(strncmp(token, "dummy", 5) == 0) {
+	  was_dummy = 1;
+	} else if(strcmp(token, "help") == 0) {
 		wputs("Available commands:");
 		token = get_token(&str);
 		if(strcmp(token, "video_matrix") == 0)
@@ -666,8 +671,7 @@ void ci_service(void)
 		else
 			ci_help();
 		wputs("");
-	}
-	else if(strcmp(token, "reboot") == 0) reboot();
+	} else if(strcmp(token, "reboot") == 0) reboot();
 	else if(strcmp(token, "mr") == 0) mr(get_token(&str), get_token(&str));
 	else if(strcmp(token, "mw") == 0) mw(get_token(&str), get_token(&str), get_token(&str));
 	else if(strcmp(token, "mc") == 0) mc(get_token(&str), get_token(&str), get_token(&str));
@@ -872,14 +876,6 @@ void ci_service(void)
 		  wprintf( "xadc: %d mC\n", ((unsigned int)xadc_temperature_read() * 503975) / 4096 - 273150 );
 		} else if( strcmp(token, "km") == 0 ) {
 		  derive_km();
-		} else if( strcmp(token, "pause" ) == 0 ) {
-		  if( update_video == 1 ) {
-		    update_video = 0;
-		    wprintf( "stopping video\n" );
-		  } else {
-		    update_video = 1;
-		    wprintf( "starting video\n" );
-		  }
 		} else if( strcmp(token, "hpdforce") == 0 ) {
 		  hdcp_hpd_ena_write(1);
 		} else if( strcmp(token, "hpdrelax") == 0 ) {
@@ -894,17 +890,32 @@ void ci_service(void)
 		    // may need to add a delay to allow write->read access time
 		    wprintf( "%02x ", i2c_snoop_edid_snoop_dat_read() );
 		  }
+		} else if( strcmp(token, "inc") == 0 ) {
+		  int run = 0;
+		  flush_cpu_icache();
+		  flush_cpu_dcache();
+		  hdmi_in1_dma_address_valid_write(1);
+		  hdmi_in1_dma_dma_go_write(1);
+		  while(hdmi_in1_dma_dma_running_read()) {
+		    wprintf( "run%d ", run++ );
+		    flush_cpu_icache();
+		    flush_cpu_dcache();
+		  }
 		} else {
 		  help_debug();
 		}
-	} else if (strncmp(token, "dummy", 5) == 0) {
-	  was_dummy = 1;
 	} else {
 	  //		if(status_enabled)
 	  //			status_disable();
 	}
     if( !was_dummy ) {
       ci_prompt();
+    } else {
+#if 0      
+      if( ci_iters % 100 == 0 ) {
+	printf( "c%d*%x ", ci_iters, irq_getmask() );
+      }
+#endif
     }
 }
 

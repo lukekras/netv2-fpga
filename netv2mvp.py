@@ -405,7 +405,6 @@ class BaseSoC(SoCSDRAM):
 
     mem_map = {
         "spiflash" : 0x20000000, # (default shadow @0xa0000000)
-#        "vexriscv_debug": 0xf00f0000,
     }
     mem_map.update(SoCSDRAM.mem_map)
 
@@ -413,7 +412,7 @@ class BaseSoC(SoCSDRAM):
         clk_freq = int(100e6)
         SoCSDRAM.__init__(self, platform, clk_freq,
             integrated_rom_size=0x5000,
-            integrated_sram_size=0x4000,
+            integrated_sram_size=0x1000,
             ident="NeTV2 LiteX Base SoC",
             reserve_nmi_interrupt=False,
             cpu_type="vexriscv",
@@ -518,23 +517,24 @@ class HDCP(Module, AutoCSR):
         self.hpd_ena = CSRStorage()
         self.Aksv_mode = CSRStorage()  # set to 0 = auto Aksv; set to 1 then Aksv_manual
         self.Aksv_manual = CSRStorage() # set to 1 to initiate HDCP rekey based on Aksv updates
+        self.debug = CSRStorage()
 
         self.cipher_stream = Signal(24)
         self.stream_ready = Signal()
 
         self.submodules.ev = EventManager()
-        self.ev.aksv = EventSourceProcess()
+        self.ev.aksv = EventSourcePulse()
         self.ev.finalize()
 
         # synchronize Aksv14_auto into sysclock domain
         Aksv14_sys = Signal()
         self.specials += MultiReg(self.Aksv14_write_level, Aksv14_sys)
-        Aksv14_sys_r = Signal()
-        self.sync += Aksv14_sys_r.eq(Aksv14_sys)
-        self.Aksv14_sys_pulse = Aksv14_sys_pulse = Signal()
+        #Aksv14_sys_r = Signal()
+        #self.sync += Aksv14_sys_r.eq(Aksv14_sys)
+        #self.Aksv14_sys_pulse = Aksv14_sys_pulse = Signal()
         # derive a pulse to drive the interrupt line when this happens
-        self.sync += Aksv14_sys_pulse.eq(Aksv14_sys & ~Aksv14_sys_r)
-        self.comb += self.ev.aksv.trigger.eq(Aksv14_sys_pulse)
+        #self.sync += Aksv14_sys_pulse.eq(Aksv14_sys & ~Aksv14_sys_r)
+        self.comb += self.ev.aksv.trigger.eq(Aksv14_sys)  # convert this to EventSourcePulse so pulse converter redundant
 
         self.Aksv14_auto = Signal()
         # install a mux so we can select either auto behavior, or manual override
@@ -655,7 +655,7 @@ class VideoOverlaySoC(BaseSoC):
     csr_map_update(BaseSoC.csr_map, csr_peripherals)
 
     interrupt_map = {
-        "hdmi_in1": 3,
+#        "hdmi_in1": 3,
         "hdcp" : 4,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
@@ -728,13 +728,14 @@ class VideoOverlaySoC(BaseSoC):
         ########## hdmi in 1
         hdmi_in1_pads = platform.request("hdmi_in", 1)
         self.submodules.hdmi_in1_freq = FrequencyMeter(period=self.clk_freq)
-        self.submodules.hdmi_in1 = hdmi_in1 = HDMIIn(hdmi_in1_pads,
+        self.submodules.hdmi_in1 = self.hdmi_in1 = HDMIIn(hdmi_in1_pads,
                                          self.sdram.crossbar.get_port(mode="write"),
-                                         fifo_depth=1024,
+                                         fifo_depth=512,
                                          device="xc7",
                                          split_mmcm=False,
                                          mode="rgb",
-                                         hdmi=True
+                                         hdmi=True,
+                                         n_dma_slots=2,
                                           )
         self.comb += self.hdmi_in1_freq.clk.eq(self.hdmi_in1.clocking.cd_pix.clk)
 
@@ -782,7 +783,7 @@ class VideoOverlaySoC(BaseSoC):
         ###############  hdmi out 1 (overlay rgb)
 
         out_dram_port = self.sdram.crossbar.get_port(mode="read", cd="pix_o", dw=32, reverse=True)
-        self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=1024, genlock_stream=hdmi_in0_timing)
+        self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=512, genlock_stream=hdmi_in0_timing)
 
         core_source_valid_d = Signal()
         core_source_data_d = Signal(32)
@@ -911,9 +912,12 @@ class VideoOverlaySoC(BaseSoC):
         ]
 
         self.comb += platform.request("fpga_led2", 0).eq(self.hdmi_in0.clocking.locked)  # RX0 green
-        self.comb += platform.request("fpga_led3", 0).eq(0)  # RX0 red
+#        self.comb += platform.request("fpga_led3", 0).eq(0)  # RX0 red
+        zero32 = Signal(32)
+        self.comb += zero32.eq(0)
+        self.comb += platform.request("fpga_led3", 0).eq(self.cpu_or_bridge.interrupt == zero32)  # RX0 red (stuck high most of the time)
 #        self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
-        self.sync += platform.request("fpga_led4", 0).eq(self.sdram.controller.refresher.timer.done)  # OV0 red -- for now confirm DDR3 refresh state machine
+        self.sync += platform.request("fpga_led4", 0).eq(hdcp.debug.storage)  # connect for GPIO debug (toggling like mad)
         self.comb += platform.request("fpga_led5", 0).eq(self.hdmi_in1.clocking.locked)  # OV0 green
 
         # analyzer ethernet
@@ -950,9 +954,6 @@ class VideoOverlaySoC(BaseSoC):
             self.submodules.etherbone = LiteEthEtherbone(core.udp, 1234, mode="master", cd="etherbone")
             self.add_wb_master(self.etherbone.wishbone.bus)
 
-        # Attach the VexRiscv debug bus to RAM
-#        self.register_mem("vexriscv_debug", self.mem_map["vexriscv_debug"], self.cpu_or_bridge.debug_bus, 0x1000)
-
         self.platform.add_false_path_constraints(
            self.crg.cd_sys.clk,
            self.crg.cd_eth.clk
@@ -968,20 +969,25 @@ class VideoOverlaySoC(BaseSoC):
         from litescope import LiteScopeAnalyzer
 
         analyzer_signals = [
-            self.hdcp.Aksv14_sys_pulse,
-            self.hdcp.Aksv14_auto,
-            self.hdcp.Aksv14_write,
-            self.hdcp.Aksv_mode.storage,
-            self.hdcp.Aksv_manual.storage,
+            self.cpu_or_bridge.interrupt,
             self.sdram.controller.refresher.timer.done,
+            self.hdmi_in1.dma.start_address,
+            self.hdmi_in1.dma.current_address,
+            self.hdmi_in1.dma.mwords_remaining,
+            self.hdmi_in1.dma.last_count_holding,
+            self.hdmi_in1.dma.reset_words,
+            self.hdmi_in1.dma.dma_running.status,
+            self.hdmi_in1.dma.count_word,
+            self.hdmi_in1.dma.reset_words,
+            self.hdmi_in1.dma.last_word,
+            self.hdmi_in1.dma.fsm,
         ]
         self.platform.add_false_path_constraints( # for I2C snoop -> HDCP, and also covers logic analyzer path when configured
            self.crg.cd_eth.clk,
            self.hdmi_in0.clocking.cd_pix_o.clk
         )
-        # NOT USING ANALYZER, COMMENT OUT FOR FASTER COMPILE TIMES
-        # self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 128, cd="sys")
-
+        # WHEN NOT USING ANALYZER, COMMENT OUT FOR FASTER COMPILE TIMES
+#        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 32, cd="sys", trigger_depth=8)
 #    def do_exit(self, vns):
 #        self.analyzer.export_csv(vns, "test/analyzer.csv")
 

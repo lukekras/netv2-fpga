@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include "stdio_wrap.h"
+#include <irq.h>
 
 
 #include <generated/csr.h>
@@ -526,86 +527,50 @@ int processor_mode = 0;
 
 void processor_init(void)
 {
-	processor_hdmi_out0_source = VIDEO_IN_HDMI_IN0;
-	processor_hdmi_out1_source = VIDEO_IN_HDMI_IN0;
-	processor_encoder_source = VIDEO_IN_HDMI_IN0;
-#ifdef ENCODER_BASE
-		encoder_enable(0);
-		encoder_target_fps = 30;
-#endif
+	processor_hdmi_out0_source = VIDEO_IN_HDMI_IN1;
 	pattern = COLOR_BAR_PATTERN;
 }
 
 extern void init_rect(void);
-void processor_start(int mode)
-{
-	const struct video_timing *m = &video_modes[mode];
-	processor_mode = mode;
-	processor_h_active = m->h_active;
-	processor_v_active = m->v_active;
-	processor_refresh = calculate_refresh_rate(m);
 
-#ifdef CSR_HDMI_OUT0_BASE
-	hdmi_out0_core_initiator_enable_write(0);
-	hdmi_out0_driver_clocking_mmcm_reset_write(1);
-#endif
-#ifdef CSR_HDMI_OUT1_BASE
-	hdmi_out1_core_initiator_enable_write(0);
-#endif
-#ifdef CSR_HDMI_IN0_BASE
-	hdmi_in0_edid_hpd_en_write(0);
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	hdmi_in1_edid_hpd_en_write(0);
-#endif
+void processor_start(int mode) {
+  const struct video_timing *m = &video_modes[mode];
+  
+  processor_mode = mode;
+  processor_h_active = m->h_active;
+  processor_v_active = m->v_active;
+  processor_refresh = calculate_refresh_rate(m);
 
-#ifdef CSR_HDMI_IN0_BASE
-	hdmi_in0_disable();
-	hdmi_in0_clear_framebuffers();
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	hdmi_in1_disable();
-	hdmi_in1_clear_framebuffers();
-#endif
-#ifndef SIMULATION
-	pattern_fill_framebuffer(m->h_active, m->v_active);
-#endif
+  hdmi_in0_edid_hpd_en_write(0);
+  hdmi_in1_edid_hpd_en_write(0);
 
-	printf(".");
-#ifdef CSR_HDMI_IN0_BASE
-       	mmcm_config_for_clock(m->pixel_clock);
-#endif
-	printf(".");
-	fb_set_mode(m);
-	//	const struct video_timing *n = &video_modes[11]; // fix to 1080p @ 60Hz
-	//	edid_set_mode(n);
-	edid_set_mode(m);
-#ifdef CSR_HDMI_IN0_BASE
-	hdmi_in0_init_video(m->h_active, m->v_active);
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	hdmi_in1_init_video(m->h_active, m->v_active);
-#endif
+  hdmi_in0_disable();
+  hdmi_in0_clear_framebuffers();
 
-#ifdef CSR_HDMI_OUT0_BASE
-	hdmi_out0_driver_clocking_mmcm_reset_write(0);
-	hdmi_out0_core_initiator_enable_write(1);
-#endif
-#ifdef CSR_HDMI_OUT1_BASE
-	hdmi_out1_core_initiator_enable_write(1);
-#endif
-#ifdef CSR_HDMI_IN0_BASE
-	hdmi_in0_edid_hpd_en_write(1);
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	hdmi_in1_edid_hpd_en_write(1);
-#endif
+  hdmi_in1_disable();
+  hdmi_in1_clear_framebuffers();
 
-#ifdef CSR_HDCP_BASE
-	hdcp_init();
-	init_rect();
-#endif
+  pattern_fill_framebuffer(m->h_active, m->v_active);
+  
+  printf(".");
+  mmcm_config_for_clock(m->pixel_clock);
+  printf(".");
+  fb_set_mode(m);
+  //	const struct video_timing *n = &video_modes[11]; // fix to 1080p @ 60Hz
+  //	edid_set_mode(n);
+  edid_set_mode(m);
 
+  hdmi_in0_init_video(m->h_active, m->v_active);
+  hdmi_in1_init_video(m->h_active, m->v_active);
+
+  hdmi_in0_edid_hpd_en_write(1);
+  hdmi_in1_edid_hpd_en_write(1);
+
+  hdcp_init();
+  init_rect();
+
+  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
+  printf( "hdmi_out0: %x\n", hdmi_core_out0_initiator_base_read() );
 }
 
 void processor_set_hdmi_out0_source(int source) {
@@ -631,70 +596,26 @@ char * processor_get_source_name(int source) {
 
 void processor_update(void)
 {
-  //  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-  
-#ifdef CSR_HDMI_OUT0_BASE
-	/*  hdmi_out0 */
-#ifdef CSR_HDMI_IN0_BASE
-  if(processor_hdmi_out0_source == VIDEO_IN_HDMI_IN0)
-    hdmi_out0_core_initiator_base_write(hdmi_in0_framebuffer_base(hdmi_in0_fb_index));
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-  if(processor_hdmi_out0_source == VIDEO_IN_HDMI_IN1)
-    hdmi_out0_core_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-#endif
-  if(processor_hdmi_out0_source == VIDEO_IN_PATTERN)
-    hdmi_out0_core_initiator_base_write(pattern_framebuffer_base());
-#endif
-
-#if 0
-#ifdef CSR_HDMI_OUT1_BASE
-#error "not here!"
-	/*  hdmi_out1 */
-#ifdef CSR_HDMI_IN0_BASE
-	if(processor_hdmi_out1_source == VIDEO_IN_HDMI_IN0)
-		hdmi_out1_core_initiator_base_write(hdmi_in0_framebuffer_base(hdmi_in0_fb_index));
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	if(processor_hdmi_out1_source == VIDEO_IN_HDMI_IN1)
-		hdmi_out1_core_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-#endif
-	if(processor_hdmi_out1_source == VIDEO_IN_PATTERN)
-		hdmi_out1_core_initiator_base_write(pattern_framebuffer_base());
-#endif
-
-
-#ifdef ENCODER_BASE
-#error "not here!"
-	/*  encoder */
-#ifdef CSR_HDMI_IN0_BASE
-	if(processor_encoder_source == VIDEO_IN_HDMI_IN0) {
-		encoder_reader_base_write(hdmi_in0_framebuffer_base(hdmi_in0_fb_index));
-	}
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	if(processor_encoder_source == VIDEO_IN_HDMI_IN1) {
-		encoder_reader_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-	}
-#endif
-	if(processor_encoder_source == VIDEO_IN_PATTERN)
-		encoder_reader_base_write(pattern_framebuffer_base());
-#endif
-#endif
+  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
 }
 
+extern int hdmi_in0_locked;
+volatile int cur_irq_mask = 0;
 void processor_service(void)
 {
 	const struct video_timing *m = &video_modes[processor_mode];
-#ifdef CSR_HDMI_IN0_BASE
+
+	cur_irq_mask = irq_getmask();
+
+	//	printf( "." );
 	hdmi_in0_service(m->pixel_clock);  // HDMI in 0 is a passthrough
-#endif
-#ifdef CSR_HDMI_IN1_BASE
-	hdmi_in1_service(m->pixel_clock);
-#endif
+	
+	if( hdmi_in0_locked ) {
+	  //	  printf( "*" );
+	  hdmi_in1_service(m->pixel_clock);  // don't service this unless we have hdmi in0 locked
+	}
+
+	//	printf( "o" );
 	processor_update();
-#ifdef ENCODER_BASE
-	encoder_service();
-#endif
 
 }

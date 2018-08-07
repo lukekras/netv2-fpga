@@ -14,7 +14,7 @@
 
 #include "hdmi_in0.h"
 
-int hdmi_in0_debug;
+int hdmi_in0_debug = 0;
 int hdmi_in0_fb_index;
 
 #define FRAMEBUFFER_COUNT 4
@@ -112,7 +112,7 @@ void hdmi_in0_isr(void)
 #endif
 
 static int hdmi_in0_connected;
-static int hdmi_in0_locked;
+int hdmi_in0_locked;
 
 void hdmi_in0_init_video(int hres, int vres)
 {

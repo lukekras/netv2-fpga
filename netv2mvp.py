@@ -472,6 +472,8 @@ class BaseSoC(SoCSDRAM):
         self.add_memory_region(
             "spiflash", self.mem_map["spiflash"] | self.shadow_base, 8*1024*1024)
 
+        self.flash_boot_address = 0x207b0000  # hard-coded to be just above the second copy of 100T bitfile
+
 
 class I2Csnoop(Module, AutoCSR):
     def __init__(self, pads):

@@ -444,9 +444,18 @@ void service_dma(void) {
   flush_cpu_icache();
   flush_cpu_dcache();
 #else
-  //  if(hdmi_in1_dma_dma_running_read() == 0 && hdmi_in1_dma_address_valid_read() == 1) {
-  //    printf( "last %x, %d ", hdmi_in1_dma_last_count_reached_read(), service_count++ );
-  //  }
+
+  // self-start
+  if(hdmi_in1_dma_address_valid_read() == 0) {
+    hdmi_in1_dma_address_valid_write(1);
+  }
+
+  // restart on vsync
+  if(hdmi_in1_dma_dma_running_read() == 0 && hdmi_in1_dma_address_valid_read() == 1) {
+    hdmi_in1_dma_dma_go_write(1);
+    if( hdmi_in1_dma_last_count_reached_read() != (hdmi_in1_framebuffer_base(0) + 1920*1080*4) / 32 )
+      printf( "DMA count err: last %x, %d ", hdmi_in1_dma_last_count_reached_read(), service_count++ );
+  }
 #endif
 }
 

@@ -896,11 +896,13 @@ void ci_service(void)
 		  flush_cpu_dcache();
 		  hdmi_in1_dma_address_valid_write(1);
 		  hdmi_in1_dma_dma_go_write(1);
+#if 0
 		  while(hdmi_in1_dma_dma_running_read()) {
 		    wprintf( "run%d ", run++ );
 		    flush_cpu_icache();
 		    flush_cpu_dcache();
 		  }
+#endif
 		} else {
 		  help_debug();
 		}

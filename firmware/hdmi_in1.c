@@ -14,10 +14,11 @@
 
 #include "hdmi_in1.h"
 
-/// TODO PUT THIS INTO A SYSTEM GENERATED FILE
-//#define IODELAY_TAP_DURATION   78   // 200 MHz IDELAYCTRL
-#define IODELAY_TAP_DURATION   39   // 400 MHz IDELAYCTRL
-
+#ifdef IDELAYCTRL_CLOCK_FREQUENCY
+static int idelay_freq = IDELAYCTRL_CLOCK_FREQUENCY;
+#else
+static int idelay_freq = 200000000; // default to 200 MHz
+#endif
 
 int hdmi_in1_debug = 0;
 int hdmi_in1_fb_index = 0;
@@ -277,6 +278,13 @@ void hdmi_in1_print_status(void)
 int hdmi_in1_calibrate_delays(int freq)
 {
 	int i, phase_detector_delay;
+	int iodelay_tap_duration;
+
+	if( idelay_freq == 400000000 ) {
+	  iodelay_tap_duration = 39;
+	} else {
+	  iodelay_tap_duration = 78;
+	}
 
 	hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
 	hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
@@ -290,7 +298,8 @@ int hdmi_in1_calibrate_delays(int freq)
 	  (78 ps taps on 7-series) */
 	// 148.5 pixclk * 10 = 1485MHz bitrate = 0.673ns window
 	// 10e6/(2*freq*39) = 8 = 312 ps delay
-	phase_detector_delay = 10000000/(4*freq*IODELAY_TAP_DURATION);
+	// however due to another bug the clock is reporting at 1/2 freq so we compensate here for that
+	phase_detector_delay = 10000000/(4*freq*iodelay_tap_duration);
 	printf("HDMI in1 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
 	
 	for(i=0; i<phase_detector_delay; i++) {

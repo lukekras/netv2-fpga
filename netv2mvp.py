@@ -429,7 +429,9 @@ class BaseSoC(SoCSDRAM):
         platform.add_period_constraint(self.crg.cd_sys.clk, period_ns(100e6))
 
         # sdram
-        self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=400e6)
+        iodelay_clk_freq = int(400e6)
+        self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
+        self.add_constant("IDELAYCTRL_CLOCK_FREQUENCY", int(iodelay_clk_freq))
         sdram_module = MT41J128M16(self.clk_freq, "1:4")
         self.add_constant("READ_LEVELING_BITSLIP", 3)
         self.add_constant("READ_LEVELING_DELAY", 14)

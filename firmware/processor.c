@@ -514,12 +514,12 @@ static void edid_set_mode(const struct video_timing *mode)
 #ifdef CSR_HDMI_IN0_BASE
 	generate_edid(&edid, "OHW", "TV", 2015, "HDMI2USB 1", mode);
 	for(i=0;i<sizeof(edid);i++)
-	  MMPTR(CSR_HDMI_IN0_EDID_MEM_BASE+4*i) = netv_edid_30hz[i]; // note netv_edid
+	  MMPTR(CSR_HDMI_IN0_EDID_MEM_BASE+4*i) = netv_edid_60hz[i]; // note netv_edid
 #endif
 #ifdef CSR_HDMI_IN1_BASE
 	generate_edid(&edid, "OHW", "TV", 2015, "HDMI2USB 2", mode);
 	for(i=0;i<sizeof(edid);i++)
-	  MMPTR(CSR_HDMI_IN1_EDID_MEM_BASE+4*i) = netv_edid_30hz[i]; // note netv_edid
+	  MMPTR(CSR_HDMI_IN1_EDID_MEM_BASE+4*i) = netv_edid_60hz[i]; // note netv_edid
 #endif
 }
 
@@ -596,7 +596,7 @@ char * processor_get_source_name(int source) {
 
 void processor_update(void)
 {
-  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
+  //  hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
 }
 
 extern int hdmi_in0_locked;
@@ -607,15 +607,12 @@ void processor_service(void)
 
 	cur_irq_mask = irq_getmask();
 
-	//	printf( "." );
 	hdmi_in0_service(m->pixel_clock);  // HDMI in 0 is a passthrough
 	
 	if( hdmi_in0_locked ) {
-	  //	  printf( "*" );
 	  hdmi_in1_service(m->pixel_clock);  // don't service this unless we have hdmi in0 locked
 	}
 
-	//	printf( "o" );
 	processor_update();
 
 }

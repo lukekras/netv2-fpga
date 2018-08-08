@@ -390,7 +390,7 @@ class CRG(Module):
             ).Else(
                 ic_reset.eq(0)
             )
-        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
+        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("sys4x"), i_RST=ic_reset)
 
 
 class BaseSoC(SoCSDRAM):
@@ -429,7 +429,7 @@ class BaseSoC(SoCSDRAM):
         platform.add_period_constraint(self.crg.cd_sys.clk, period_ns(100e6))
 
         # sdram
-        self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"))
+        self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=400e6)
         sdram_module = MT41J128M16(self.clk_freq, "1:4")
         self.add_constant("READ_LEVELING_BITSLIP", 3)
         self.add_constant("READ_LEVELING_DELAY", 14)
@@ -657,7 +657,7 @@ class VideoOverlaySoC(BaseSoC):
     csr_map_update(BaseSoC.csr_map, csr_peripherals)
 
     interrupt_map = {
-#        "hdmi_in1": 3,
+        "hdmi_in1": 3,
         "hdcp" : 4,
     }
     interrupt_map.update(BaseSoC.interrupt_map)
@@ -730,6 +730,10 @@ class VideoOverlaySoC(BaseSoC):
         ########## hdmi in 1
         hdmi_in1_pads = platform.request("hdmi_in", 1)
         self.submodules.hdmi_in1_freq = FrequencyMeter(period=self.clk_freq)
+        # maybe this core gets precedence in round-robin arbitration, but this FIFO can be smaller than
+        # the output FIFO. fifo_depth=256 was tested and works, but it turns out it doesn't save any
+        # area oven fifo_depth=512 due to the granularity of BRAM blocks. If some BRAMs are needed, try
+        # trimming to 128 and see if that actually saves any space without breaking anything...
         self.submodules.hdmi_in1 = self.hdmi_in1 = HDMIIn(hdmi_in1_pads,
                                          self.sdram.crossbar.get_port(mode="write"),
                                          fifo_depth=512,
@@ -785,7 +789,9 @@ class VideoOverlaySoC(BaseSoC):
         ###############  hdmi out 1 (overlay rgb)
 
         out_dram_port = self.sdram.crossbar.get_port(mode="read", cd="pix_o", dw=32, reverse=True)
-        self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=512, genlock_stream=hdmi_in0_timing)
+        # this core seems to starve more than the in core, so the FIFO is deeper at 2048. A 1024 depth leads to some frame tearing
+        # especially when the CPU activity is high when loaded at 1080p60
+        self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=2048, genlock_stream=hdmi_in0_timing)
 
         core_source_valid_d = Signal()
         core_source_data_d = Signal(32)
@@ -973,16 +979,6 @@ class VideoOverlaySoC(BaseSoC):
         analyzer_signals = [
             self.cpu_or_bridge.interrupt,
             self.sdram.controller.refresher.timer.done,
-            self.hdmi_in1.dma.start_address,
-            self.hdmi_in1.dma.current_address,
-            self.hdmi_in1.dma.mwords_remaining,
-            self.hdmi_in1.dma.last_count_holding,
-            self.hdmi_in1.dma.reset_words,
-            self.hdmi_in1.dma.dma_running.status,
-            self.hdmi_in1.dma.count_word,
-            self.hdmi_in1.dma.reset_words,
-            self.hdmi_in1.dma.last_word,
-            self.hdmi_in1.dma.fsm,
         ]
         self.platform.add_false_path_constraints( # for I2C snoop -> HDCP, and also covers logic analyzer path when configured
            self.crg.cd_eth.clk,

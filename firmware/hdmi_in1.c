@@ -14,6 +14,11 @@
 
 #include "hdmi_in1.h"
 
+/// TODO PUT THIS INTO A SYSTEM GENERATED FILE
+//#define IODELAY_TAP_DURATION   78   // 200 MHz IDELAYCTRL
+#define IODELAY_TAP_DURATION   39   // 400 MHz IDELAYCTRL
+
+
 int hdmi_in1_debug = 0;
 int hdmi_in1_fb_index = 0;
 
@@ -21,7 +26,7 @@ int hdmi_in1_fb_index = 0;
 #define FRAMEBUFFER_MASK (FRAMEBUFFER_COUNT - 1)
 
 //#define HDMI_IN1_FRAMEBUFFERS_BASE (0x00000000 + 0x100000)
-#define HDMI_IN1_FRAMEBUFFERS_BASE (0x04000000)
+#define HDMI_IN1_FRAMEBUFFERS_BASE (0x06000000)
 #define HDMI_IN1_FRAMEBUFFERS_SIZE (1920*1080*4)
 
 //#define CLEAN_COMMUTATION
@@ -45,7 +50,7 @@ extern void processor_update(void);
 unsigned int isr_iter = 0;
 extern volatile int cur_irq_mask;
 
-#define SLOT1 0
+#define SLOT1 1
 
 #ifdef HDMI_IN1_INTERRUPT
 void hdmi_in1_isr(void)
@@ -56,13 +61,11 @@ void hdmi_in1_isr(void)
 	unsigned int address_min, address_max, address;
 	unsigned int stat;
 
-	printf( "NO!" );
-
 	stat = hdmi_in1_dma_ev_pending_read(); // see which slot is pending
 
 	cur_irq_mask = irq_getmask();
-	if( isr_iter % 29 == 0 )
-	  printf( "%d.%d.%x.%x ", stat, isr_iter, cur_irq_mask, irq_pending() );
+	//	if( isr_iter % 29 == 0 )
+	//	  printf( "%d.%d.%x.%x ", stat, isr_iter, cur_irq_mask, irq_pending() );
 	isr_iter++;
 
 	// check address base/bounds
@@ -173,7 +176,6 @@ void hdmi_in1_init_video(int hres, int vres)
 
 	printf( "setting up HDMI1 interrupts, hres: %d vres: %d\n", hdmi_in1_hres, hdmi_in1_vres );
 	
-#if 0	
 	hdmi_in1_dma_frame_size_write(hres*vres*4);
 	hdmi_in1_fb_slot_indexes[0] = 0;
 	hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(0));
@@ -194,10 +196,10 @@ void hdmi_in1_init_video(int hres, int vres)
 	mask |= 1 << HDMI_IN1_INTERRUPT;
 	printf( "irq mask: %x\n", mask );
 	irq_setmask(mask);
-#endif
 
 #endif
 
+#if 0	// legacy code to debug interrupt/dma issue, remove once alt path validated
 	// always initialized even if there is no interrupts
 #if 0
 	hdmi_in1_dma_frame_size_write(1920*1080*4);
@@ -217,6 +219,7 @@ void hdmi_in1_init_video(int hres, int vres)
 	printf( "hdmi_in1 addr start: %x\n", hdmi_in1_dma_start_address_read() );
 
 	hdmi_in1_dma_address_valid_write(0);
+#endif
 #endif
 	
 	
@@ -285,7 +288,11 @@ int hdmi_in1_calibrate_delays(int freq)
 
 	/* preload slave phase detector idelay with 90° phase shift
 	  (78 ps taps on 7-series) */
-	phase_detector_delay = 10000000/(4*freq*78);
+	// 148.5 pixclk * 10 = 1485MHz bitrate = 0.673ns window
+	// 10e6/(2*freq*39) = 8 = 312 ps delay
+	phase_detector_delay = 10000000/(4*freq*IODELAY_TAP_DURATION);
+	printf("HDMI in1 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
+	
 	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 		hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
@@ -428,6 +435,7 @@ static int hdmi_in1_get_wer(void){
 	return wer;
 } 
 
+#if 0
 unsigned int service_count = 0;
 void service_dma(void) {
 #if 0
@@ -458,6 +466,7 @@ void service_dma(void) {
   }
 #endif
 }
+#endif
 
 void hdmi_in1_service(int freq)
 {
@@ -474,7 +483,7 @@ void hdmi_in1_service(int freq)
 	  } else {
 	    if(hdmi_in1_locked) {
 	      if(hdmi_in1_clocking_locked_filtered()) {
-		service_dma();
+		//		service_dma();
 		if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/2)) {
 		  hdmi_in1_data0_wer_update_write(1);
 		  hdmi_in1_data1_wer_update_write(1);

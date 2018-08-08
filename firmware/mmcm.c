@@ -134,7 +134,6 @@ static void hdmi_in_0_config_60_120mhz(void) {
 }
 
 static void hdmi_in_0_config_120_240mhz(void) {
-#if 1	
 	hdmi_in0_clocking_mmcm_write(0x14, 0x1000 |  (2<<6) | 3);  /* clkfbout_mult  = 5 (2/3) */
 	hdmi_in0_clocking_mmcm_write(0x15, 1 << 7);                /* clkfbout_mult  = 5 (edge = 1) */
 	hdmi_in0_clocking_mmcm_write(0x08, 0x1000 |  (2<<6) | 3);  /* clkout0_divide = 5 (2/3) */
@@ -180,7 +179,6 @@ static void hdmi_in_0_config_120_240mhz(void) {
 	hdmi_in0_clocking_mmcm_write_o(0x4E, (0x0 << 15) | (0x1 << 11) | (0x0 << 8) | 0x8); // filter register 1, reserved[7:0] is 0x8
 	// FiltReg2:   table[5]:0x0 (r):0x0 table[4:3]:0x0 (r):0x0 table[2:1]:0x2 (r):0x0 table[0]:0x0 (r):0x8
 	hdmi_in0_clocking_mmcm_write_o(0x4F, (0x0 << 11) | (0x2 << 7)  | (0x0 << 4) | 0x8); // filter register 2, reserved[7:0] is 0x8
-#endif
 #endif
 }
 #endif
@@ -272,7 +270,7 @@ static void hdmi_in_1_config_60_120mhz(void) {
 	hdmi_in1_clocking_mmcm_write_o(0x15, 1 << 7);                /* clkfbout_mult  = 5 (edge = 1) */
 	hdmi_in1_clocking_mmcm_write_o(0x08, 0x1000 |  (2<<6) | 3);  /* clkout0_divide = 5 (2/3) */
 	hdmi_in1_clocking_mmcm_write_o(0x09, 1 << 7);                /* clkout0_divide = 5 (edge = 1) */
-	hdmi_in1_clocking_mmcm_write_o(0x0a, 0x1000 |  (2<<6) | 2);  /* clkout1_divide = 4 */
+	// hdmi_in1_clocking_mmcm_write_o(0x0a, 0x1000 |  (2<<6) | 2);  /* clkout1_divide = 4 */
 	hdmi_in1_clocking_mmcm_write_o(0x0c, 0x1000 |  (0<<6) | 0);  /* clkout2_divide = 1 */
 	hdmi_in1_clocking_mmcm_write_o(0x0d, (1<<6));                /* clkout2_divide = 1 */
 
@@ -285,10 +283,12 @@ static void hdmi_in_1_config_60_120mhz(void) {
                 i_CLKIN1=mmcm_clk0,  # uncompesated delay for best phase match between master/slave
                 i_CLKFBIN=mmcm_fb_o, o_CLKFBOUT=mmcm_fb_o,  */
 	hdmi_in1_clocking_mmcm_write_o(0x18, 0x3e8); // lock register 1
-	hdmi_in1_clocking_mmcm_write_o(0x19, (0x0 << 15) | (0xe << 10) | 0x3801); // lock register 2
-	hdmi_in1_clocking_mmcm_write_o(0x1A, (0x1 << 15) | (0xe << 10) | 0x3be9); // lock register 3
+	hdmi_in1_clocking_mmcm_write_o(0x19, (0x0 << 15) | (0x1c << 10) | 0x3001); // lock register 2
+	hdmi_in1_clocking_mmcm_write_o(0x1A, (0x1 << 15) | (0x1c << 10) | 0x33e9); // lock register 3
+	// FiltReg1:   table[9]:0x0 (r):0x0 table[8:7]:0x1 (r):0x0 table[6]:0x0 (r):0x8
 	hdmi_in1_clocking_mmcm_write_o(0x4E, (0x0 << 15) | (0x1 << 11) | (0x0 << 8) | 0x8); // filter register 1, reserved[7:0] is 0x8
-	hdmi_in1_clocking_mmcm_write_o(0x4F, (0x3 << 11) | (0x2 << 7)  | (0x0 << 4) | 0x8); // filter register 2, reserved[7:0] is 0x8
+	// FiltReg2:   table[5]:0x0 (r):0x0 table[4:3]:0x0 (r):0x0 table[2:1]:0x2 (r):0x0 table[0]:0x0 (r):0x8
+	hdmi_in1_clocking_mmcm_write_o(0x4F, (0x0 << 11) | (0x2 << 7)  | (0x0 << 4) | 0x8); // filter register 2, reserved[7:0] is 0x8
 #endif
 }
 

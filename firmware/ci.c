@@ -618,7 +618,7 @@ void init_rect(void) {
   wprintf("out vres %d, vscan %d\r\n", hdmi_core_out0_initiator_vres_read(), hdmi_core_out0_initiator_vscan_read());
   wprintf("out length %d\r\n", hdmi_core_out0_initiator_length_read());
   
-  hdmi_core_out0_dma_delay_base_write(80);  // this helps align the DMA transfer through various delay offsets
+  hdmi_core_out0_dma_delay_base_write(120);  // this helps align the DMA transfer through various delay offsets
   // empricially determined, will shift around depending on what you do in the overlay video pipe, e.g.
   // ycrcb422 vs rgb
   
@@ -891,11 +891,15 @@ void ci_service(void)
 		    wprintf( "%02x ", i2c_snoop_edid_snoop_dat_read() );
 		  }
 		} else if( strcmp(token, "inc") == 0 ) {
+#if 0
 		  int run = 0;
 		  flush_cpu_icache();
 		  flush_cpu_dcache();
 		  hdmi_in1_dma_address_valid_write(1);
 		  hdmi_in1_dma_dma_go_write(1);
+#else
+		  printf( "not debugging dma\n" );
+#endif
 #if 0
 		  while(hdmi_in1_dma_dma_running_read()) {
 		    wprintf( "run%d ", run++ );
@@ -903,26 +907,7 @@ void ci_service(void)
 		    flush_cpu_dcache();
 		  }
 #endif
-		} else {
-		  help_debug();
-		}
-	} else {
-	  //		if(status_enabled)
-	  //			status_disable();
-	}
-    if( !was_dummy ) {
-      ci_prompt();
-    } else {
-#if 0      
-      if( ci_iters % 100 == 0 ) {
-	printf( "c%d*%x ", ci_iters, irq_getmask() );
-      }
-#endif
-    }
-}
-
-/*
-		else if (strcmp(token, "dvimode0") == 0 ) {
+		} else if (strcmp(token, "dvimode0") == 0 ) {
 		  hdmi_in0_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode0") == 0 ) {
 		  hdmi_in0_decode_terc4_dvimode_write(0);
@@ -930,7 +915,25 @@ void ci_service(void)
 		  hdmi_in1_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode1") == 0 ) {
 		  hdmi_in1_decode_terc4_dvimode_write(0);
+		} else if (strcmp(token, "stop") == 0 ) {
+		  hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_EMPTY);
+		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_EMPTY);
+		} else if (strcmp(token, "run") == 0 ) {
+		  hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
+		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
+		} else {
+		  help_debug();
 		}
+	} else {
+	  //		if(status_enabled)
+	  //			status_disable();
+	}
+	if( !was_dummy ) {
+	  ci_prompt();
+	}
+}
+
+/*
 		else if(strcmp(token, "dma") == 0 ) {
 		wprintf("initiating DMA on HDMI1\r\n");
 		  hdmi_in1_dma_ev_enable_write(0x3);

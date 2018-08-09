@@ -140,11 +140,11 @@ void derive_km(void) {
       wprintf( "Committing Km\n" );
 #endif
       // now commit Km to the fpga
-      if( Km != CHECK_KM ) {
-	wprintf( "*****Km doesn't match check value*****\n" );
+      //      if( Km != CHECK_KM ) {
+      //	wprintf( "*****Km doesn't match check value*****\n" );
 	//	wprintf( "Writing check Km instead\n" );
 	//	Km = CHECK_KM;
-      }
+      //      }
       
       unsigned char foo;
       for( i = 6; i >= 0; i-- ) {

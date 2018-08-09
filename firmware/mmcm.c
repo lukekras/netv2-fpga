@@ -354,7 +354,8 @@ void mmcm_config_for_clock(int freq)
 	else if(freq < 6000)
 		hdmi_in_0_config_30_60mhz();
 	else if(freq < 12000)
-		hdmi_in_0_config_60_120mhz();
+		hdmi_in_0_config_120_240mhz();
+	//		hdmi_in_0_config_60_120mhz();
 	else if(freq < 24000)
 		hdmi_in_0_config_120_240mhz();
 	else

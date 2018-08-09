@@ -321,7 +321,7 @@ class CRG(Module):
         # pll_ss_locked = Signal()
         # self.specials += [
         #     Instance("MMCME2_ADV",
-        #              p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",
+        #              p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
         #              o_LOCKED=pll_ss_locked,
         #
         #              # VCO
@@ -334,9 +334,9 @@ class CRG(Module):
         #              ),
         #     Instance("BUFG", i_I=clk50_ss, o_O=clk50_ss_buf),
         # ]
-
-#        platform.add_platform_command(
-#            "set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clk50_IBUF]")
+        #
+        # platform.add_platform_command(
+        #     "set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clk50_IBUF]")
 
         pll_fb_bufg = Signal()
         self.specials += [
@@ -346,7 +346,7 @@ class CRG(Module):
                      # VCO @ 1600 MHz
                      p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                      p_CLKFBOUT_MULT=32, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=clk50, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb, # change to i_CLKIN1=clk50_ss_buf
+                     i_CLKIN1=clk50, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb, # change from clk50 to i_CLKIN1=clk50_ss_buf
 
                      # 100 MHz
                      p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
@@ -369,16 +369,15 @@ class CRG(Module):
                      o_CLKOUT4=pll_clk50,
 
             ),
-            Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_fb, o_O=pll_fb_bufg),
-#            Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_clk100.clk),
+            
+            Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
             Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
             Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst), # add | ~pll_ss_locked when using SS
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst ), # add | ~pll_ss_locked when using SS
             AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
-#            AsyncResetSynchronizer(self.cd_clk100, ~pll_locked | rst | ~pll_ss_locked),
             AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst)
         ]
 

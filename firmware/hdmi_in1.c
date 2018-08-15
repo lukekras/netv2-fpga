@@ -252,7 +252,7 @@ void hdmi_in1_clear_framebuffers(void)
 	}
 }
 
-static int hdmi_in1_d0, hdmi_in1_d1, hdmi_in1_d2;
+int hdmi_in1_d0, hdmi_in1_d1, hdmi_in1_d2;
 
 void hdmi_in1_print_status(void)
 {

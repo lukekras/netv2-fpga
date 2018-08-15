@@ -32,8 +32,17 @@ extern unsigned int update_video;
 static int hdmi_in1_fb_slot_indexes[2];
 static int hdmi_in1_next_fb_index;
 
-int status_enabled;
+int status_enabled = 0;
+int json_enabled = 1;
+
 extern const struct video_timing video_modes[];
+
+static unsigned int log2(unsigned int v)
+{
+	unsigned int r = 0;
+	while(v>>=1) r++;
+	return r;
+}
 
 static void help_video_matrix(void)
 {
@@ -240,7 +249,84 @@ static void status_disable(void)
 	status_enabled = 0;
 }
 
+static void json_enable(void)
+{
+	wprintf("Enabling json status\r\n");
+	json_enabled = 1;
+}
+
+static void json_disable(void)
+{
+	wprintf("Disabling json status\r\n");
+	json_enabled = 0;
+}
+
 static void debug_ddr(void);
+
+extern int hdmi_in0_d0, hdmi_in0_d1, hdmi_in0_d2;
+extern int hdmi_in1_d0, hdmi_in1_d1, hdmi_in1_d2;
+static void json_print(void) {
+  wprintf( "{" );
+  unsigned long long int nr, nw;
+  unsigned long long int f;
+  unsigned int rdb, wrb;
+  unsigned int burstbits;
+
+  wprintf( "\"hdmi_RX_hres\" : %d, ", hdmi_in0_resdetection_hres_read() );
+  wprintf( "\"hdmi_RX_vres\" : %d, ", hdmi_in0_resdetection_vres_read() );
+  wprintf( "\"hdmi_RX_pixel_clock\" : %d, ", hdmi_in0_freq_value_read());
+
+  hdmi_in0_data0_wer_update_write(1);
+  hdmi_in0_data1_wer_update_write(1);
+  hdmi_in0_data2_wer_update_write(1);
+  wprintf("\"hdmi_RX_phase\" : \"%d %d %d\", \"hdmi_RX_symbol_sync\" : %d%d%d, ",
+	  hdmi_in0_d0, hdmi_in0_d1, hdmi_in0_d2,
+	  hdmi_in0_data0_charsync_char_synced_read(),
+	  hdmi_in0_data1_charsync_char_synced_read(),
+	  hdmi_in0_data2_charsync_char_synced_read());
+  wprintf("\"hdmi_RX_sync_pos\" : \"%d %d %d\", \"hdmi_RX_symbol_errors\" : \"%d %d %d\", \"hdmi_RX_chansyncd\" : %d, ",
+	  hdmi_in0_data0_charsync_ctl_pos_read(),
+	  hdmi_in0_data1_charsync_ctl_pos_read(),
+	  hdmi_in0_data2_charsync_ctl_pos_read(),
+	  hdmi_in0_data0_wer_value_read(),
+	  hdmi_in0_data1_wer_value_read(),
+	  hdmi_in0_data2_wer_value_read(),
+	  hdmi_in0_chansync_channels_synced_read());
+  
+  wprintf( "\"overlay_hres\" : %d, ", hdmi_in1_resdetection_hres_read() );
+  wprintf( "\"overlay_vres\" : %d, ", hdmi_in1_resdetection_vres_read() );
+  wprintf( "\"overaly_pixel_clock\" : %d, ", hdmi_in1_freq_value_read());
+
+  hdmi_in1_data0_wer_update_write(1);
+  hdmi_in1_data1_wer_update_write(1);
+  hdmi_in1_data2_wer_update_write(1);
+  wprintf("\"overlay_phase\" : \"%d %d %d\", \"overlay_symbol_sync\" : %d%d%d, ",
+	  hdmi_in1_d0, hdmi_in1_d1, hdmi_in1_d2,
+	  hdmi_in1_data0_charsync_char_synced_read(),
+	  hdmi_in1_data1_charsync_char_synced_read(),
+	  hdmi_in1_data2_charsync_char_synced_read());
+  wprintf("\"overlay_sync_pos\" : \"%d %d %d\", \"overlay_symbol_errors\" : \"%d %d %d\", \"overlay_chansyncd\" : %d, ",
+	  hdmi_in1_data0_charsync_ctl_pos_read(),
+	  hdmi_in1_data1_charsync_ctl_pos_read(),
+	  hdmi_in1_data2_charsync_ctl_pos_read(),
+	  hdmi_in1_data0_wer_value_read(),
+	  hdmi_in1_data1_wer_value_read(),
+	  hdmi_in1_data2_wer_value_read(),
+	  hdmi_in1_chansync_channels_synced_read());
+  
+  sdram_controller_bandwidth_update_write(1);
+  nr = sdram_controller_bandwidth_nreads_read();
+  nw = sdram_controller_bandwidth_nwrites_read();
+  f = SYSTEM_CLOCK_FREQUENCY;
+  burstbits = (2*DFII_NPHASES) << DFII_PIX_DATA_SIZE;
+  rdb = (nr*f >> (27 - log2(burstbits)))/1000000ULL;
+  wrb = (nw*f >> (27 - log2(burstbits)))/1000000ULL;
+  wprintf("\"ddr_read_Mbps\" : %d, \"ddr_write_Mbps\" : %d, ", rdb, wrb);
+  
+  wprintf( "\"fpga_die_temp\" : \"%dC\" ", (((unsigned int)xadc_temperature_read() * 503975) / 4096 - 273150) / 1000);
+  
+  wprintf( "}\n\r" );
+}
 
 static void status_print(void)
 {
@@ -344,6 +430,10 @@ static void status_service(void)
 	if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY)) {
 		if(status_enabled) {
 			status_print();
+			wprintf("\r\n");
+		}
+		if(json_enabled) {
+			json_print();
 			wprintf("\r\n");
 		}
 	}
@@ -529,13 +619,6 @@ static void debug_mmcm(void)
 	mmcm_dump();
 }
 
-static unsigned int log2(unsigned int v)
-{
-	unsigned int r = 0;
-	while(v>>=1) r++;
-	return r;
-}
-
 #ifdef CSR_SDRAM_CONTROLLER_BANDWIDTH_UPDATE_ADDR
 static void debug_ddr(void)
 {
@@ -601,11 +684,11 @@ void init_rect(void) {
   hdmi_core_out0_initiator_length_write(m->h_active*m->v_active*4);
 
 #if 1		  
-  rectangle_hrect_start_write(10);
-  rectangle_hrect_end_write(1915);
+  rectangle_hrect_start_write(15);
+  rectangle_hrect_end_write(1910);
   rectangle_vrect_start_write(10);
   rectangle_vrect_end_write(1070);
-  rectangle_rect_thresh_write(48); // "reasonable" default
+  rectangle_rect_thresh_write(20); // "reasonable" default for magic mirror use
 #else
   rectangle_hrect_start_write(10);
   rectangle_hrect_end_write(1270);
@@ -812,6 +895,16 @@ void ci_service(void)
 			status_disable();
 		else
 			status_print();
+	}
+
+	else if(strcmp(token, "json") == 0) {
+	  token = get_token(&str);
+	  if(strcmp(token, "on") == 0)
+	    json_enable();
+	  else if(strcmp(token, "off") == 0)
+	    json_disable();
+	  else
+	    json_print();
 	}
 	else if(strcmp(token, "debug") == 0) {
 		token = get_token(&str);

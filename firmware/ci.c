@@ -272,19 +272,19 @@ static void json_print(void) {
   unsigned int rdb, wrb;
   unsigned int burstbits;
 
-  wprintf( "\"hdmi_RX_hres\" : %d, ", hdmi_in0_resdetection_hres_read() );
-  wprintf( "\"hdmi_RX_vres\" : %d, ", hdmi_in0_resdetection_vres_read() );
-  wprintf( "\"hdmi_RX_pixel_clock\" : %d, ", hdmi_in0_freq_value_read());
+  wprintf( "\"hdmi_Rx_hres\" : %d, ", hdmi_in0_resdetection_hres_read() );
+  wprintf( "\"hdmi_Rx_vres\" : %d, ", hdmi_in0_resdetection_vres_read() );
+  wprintf( "\"hdmi_Rx_pixel_clock\" : %d, ", hdmi_in0_freq_value_read());
 
   hdmi_in0_data0_wer_update_write(1);
   hdmi_in0_data1_wer_update_write(1);
   hdmi_in0_data2_wer_update_write(1);
-  wprintf("\"hdmi_RX_phase\" : \"%d %d %d\", \"hdmi_RX_symbol_sync\" : %d%d%d, ",
+  wprintf("\"hdmi_Rx_phase\" : \"%d %d %d\", \"hdmi_Rx_symbol_sync\" : %d%d%d, ",
 	  hdmi_in0_d0, hdmi_in0_d1, hdmi_in0_d2,
 	  hdmi_in0_data0_charsync_char_synced_read(),
 	  hdmi_in0_data1_charsync_char_synced_read(),
 	  hdmi_in0_data2_charsync_char_synced_read());
-  wprintf("\"hdmi_RX_sync_pos\" : \"%d %d %d\", \"hdmi_RX_symbol_errors\" : \"%d %d %d\", \"hdmi_RX_chansyncd\" : %d, ",
+  wprintf("\"hdmi_Rx_sync_pos\" : \"%d %d %d\", \"hdmi_Rx_symbol_errors\" : \"%d %d %d\", \"hdmi_Rx_chansyncd\" : %d, ",
 	  hdmi_in0_data0_charsync_ctl_pos_read(),
 	  hdmi_in0_data1_charsync_ctl_pos_read(),
 	  hdmi_in0_data2_charsync_ctl_pos_read(),

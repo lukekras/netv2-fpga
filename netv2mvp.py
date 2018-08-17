@@ -57,6 +57,7 @@ _io = [
     ("fpga_led3", 0, Pins("AA21"), IOStandard("LVCMOS33")),
     ("fpga_led4", 0, Pins("R19"), IOStandard("LVCMOS33")),
     ("fpga_led5", 0, Pins("M16"), IOStandard("LVCMOS33")),
+    ("fan_pwm", 0, Pins("L14"), IOStandard("LVCMOS33")),
 
     ("serial", 0,
         Subsignal("tx", Pins("E14")),
@@ -315,28 +316,28 @@ class CRG(Module):
         pll_clk200 = Signal()
         pll_clk50 = Signal()
 
-        ss_fb = Signal()
-        clk50_ss = Signal()
-        clk50_ss_buf = Signal()
-        pll_ss_locked = Signal()
-        self.specials += [
-            Instance("MMCME2_ADV",
-                     p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
-                     o_LOCKED=pll_ss_locked,
-
-                     # VCO
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-                     p_CLKFBOUT_MULT_F=56.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
-                     i_CLKIN1=clk50, i_CLKFBIN=ss_fb, o_CLKFBOUT=ss_fb,
-
-                     # pix clk
-                     p_CLKOUT0_DIVIDE_F=14, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=clk50_ss,
-                     ),
-            Instance("BUFG", i_I=clk50_ss, o_O=clk50_ss_buf),
-        ]
-
-        platform.add_platform_command(
-            "set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clk50_IBUF]")
+        # ss_fb = Signal()
+        # clk50_ss = Signal()
+        # clk50_ss_buf = Signal()
+        # pll_ss_locked = Signal()
+        # self.specials += [
+        #     Instance("MMCME2_ADV",
+        #              p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
+        #              o_LOCKED=pll_ss_locked,
+        #
+        #              # VCO
+        #              p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
+        #              p_CLKFBOUT_MULT_F=56.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
+        #              i_CLKIN1=clk50, i_CLKFBIN=ss_fb, o_CLKFBOUT=ss_fb,
+        #
+        #              # pix clk
+        #              p_CLKOUT0_DIVIDE_F=14, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=clk50_ss,
+        #              ),
+        #     Instance("BUFG", i_I=clk50_ss, o_O=clk50_ss_buf),
+        # ]
+        #
+        # platform.add_platform_command(
+        #     "set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clk50_IBUF]")
 
         pll_fb_bufg = Signal()
         self.specials += [
@@ -346,7 +347,7 @@ class CRG(Module):
                      # VCO @ 1600 MHz
                      p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                      p_CLKFBOUT_MULT=32, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=clk50_ss_buf, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb, # change from clk50 to i_CLKIN1=clk50_ss_buf
+                     i_CLKIN1=clk50, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb, # change from clk50 to i_CLKIN1=clk50_ss_buf
 
                      # 100 MHz
                      p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
@@ -376,7 +377,7 @@ class CRG(Module):
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
             Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~pll_ss_locked), # add | ~pll_ss_locked when using SS
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst ), # add | ~pll_ss_locked when using SS
             AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
             AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst)
         ]
@@ -446,6 +447,9 @@ class BaseSoC(SoCSDRAM):
         self.pcie_led = Signal()
         self.comb += platform.request("fpga_led0", 0).eq(self.sys_led ^ self.pcie_led) #TX0 green
         self.comb += platform.request("fpga_led1", 0).eq(0) #TX0 red
+
+        self.fan_pwm = Signal()
+        self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan to the "on" position
 
 
         # sys led

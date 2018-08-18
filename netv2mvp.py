@@ -27,7 +27,7 @@ from litex.soc.integration.builder import *
 from litex.soc.cores import dna, xadc
 from litex.soc.cores.frequency_meter import FrequencyMeter
 
-from litedram.modules import MT41J128M16
+from litedram.modules import K4B2G1646FBCK0
 from litedram.phy import a7ddrphy
 from litedram.core import ControllerSettings
 
@@ -390,7 +390,7 @@ class CRG(Module):
             ).Else(
                 ic_reset.eq(0)
             )
-        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("sys4x"), i_RST=ic_reset)
+        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("sys4x"), i_RST=ic_reset)      # sys4x
 
 
 class BaseSoC(SoCSDRAM):
@@ -432,7 +432,7 @@ class BaseSoC(SoCSDRAM):
         iodelay_clk_freq = int(400e6)
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
         self.add_constant("IDELAYCTRL_CLOCK_FREQUENCY", int(iodelay_clk_freq))
-        sdram_module = MT41J128M16(self.clk_freq, "1:4")
+        sdram_module = K4B2G1646FBCK0(self.clk_freq, "1:4", speedgrade='1600')
         self.add_constant("READ_LEVELING_BITSLIP", 3)
         self.add_constant("READ_LEVELING_DELAY", 14)
         self.register_sdram(self.ddrphy,
@@ -440,7 +440,8 @@ class BaseSoC(SoCSDRAM):
                             sdram_module.timing_settings,
                             controller_settings=ControllerSettings(with_bandwidth=True,
                                                                    cmd_buffer_depth=8,
-                                                                   with_refresh=True))
+                                                                   with_refresh=True,
+                                                                   with_auto_precharge=False))
 
         # common led
         self.sys_led = Signal()

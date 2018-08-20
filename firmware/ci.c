@@ -33,7 +33,7 @@ static int hdmi_in1_fb_slot_indexes[2];
 static int hdmi_in1_next_fb_index;
 
 int status_enabled = 0;
-int json_enabled = 0;
+int json_enabled = 1;
 
 extern const struct video_timing video_modes[];
 

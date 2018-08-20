@@ -76,28 +76,28 @@ _io = [
             "U6 V4 W5 V5 AA1 Y2 AB1 AB3",
 			"AB2 Y3 W6 Y1 V2 AA3"
             ),
-            IOStandard("SSTL15")),
-        Subsignal("ba", Pins("U5 W4 V7"), IOStandard("SSTL15")),
-        Subsignal("ras_n", Pins("Y9"), IOStandard("SSTL15")),
-        Subsignal("cas_n", Pins("Y7"), IOStandard("SSTL15")),
-        Subsignal("we_n", Pins("V8"), IOStandard("SSTL15")),
-        Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15")),
+            IOStandard("SSTL15_R")),
+        Subsignal("ba", Pins("U5 W4 V7"), IOStandard("SSTL15_R")),
+        Subsignal("ras_n", Pins("Y9"), IOStandard("SSTL15_R")),
+        Subsignal("cas_n", Pins("Y7"), IOStandard("SSTL15_R")),
+        Subsignal("we_n", Pins("V8"), IOStandard("SSTL15_R")),
+        Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15_R")),
         Subsignal("dq", Pins(
             "C2 F1 B1 F3 A1 D2 B2 E2 "
             "J5 H3 K1 H2 J1 G2 H5 G3 "
             "N2 M6 P1 N5 P2 N4 R1 P6 "
             "K3 M2 K4 M3 J6 L5 J4 K6 "
             ),
-            IOStandard("SSTL15"),
+            IOStandard("SSTL15_R"),
             Misc("IN_TERM=UNTUNED_SPLIT_50")),
-        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15")),
-        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15")),
-        Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15")),
-        Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15")),
-        Subsignal("cke", Pins("Y8"), IOStandard("SSTL15")),
-        Subsignal("odt", Pins("W9"), IOStandard("SSTL15")),
+        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R")),
+        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R")),
+        Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15_R")),
+        Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15_R")),
+        Subsignal("cke", Pins("Y8"), IOStandard("SSTL15_R")),
+        Subsignal("odt", Pins("W9"), IOStandard("SSTL15_R")),
         Subsignal("reset_n", Pins("AB5"), IOStandard("LVCMOS15")),
-        Subsignal("cs_n", Pins("V9"), IOStandard("SSTL15")),
+        Subsignal("cs_n", Pins("V9"), IOStandard("SSTL15_R")),
         Misc("SLEW=FAST"),
     ),
 
@@ -316,28 +316,28 @@ class CRG(Module):
         pll_clk200 = Signal()
         pll_clk50 = Signal()
 
-        # ss_fb = Signal()
-        # clk50_ss = Signal()
-        # clk50_ss_buf = Signal()
-        # pll_ss_locked = Signal()
-        # self.specials += [
-        #     Instance("MMCME2_ADV",
-        #              p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
-        #              o_LOCKED=pll_ss_locked,
-        #
-        #              # VCO
-        #              p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-        #              p_CLKFBOUT_MULT_F=56.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
-        #              i_CLKIN1=clk50, i_CLKFBIN=ss_fb, o_CLKFBOUT=ss_fb,
-        #
-        #              # pix clk
-        #              p_CLKOUT0_DIVIDE_F=14, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=clk50_ss,
-        #              ),
-        #     Instance("BUFG", i_I=clk50_ss, o_O=clk50_ss_buf),
-        # ]
-        #
-        # platform.add_platform_command(
-        #     "set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clk50_IBUF]")
+        ss_fb = Signal()
+        clk50_ss = Signal()
+        clk50_ss_buf = Signal()
+        pll_ss_locked = Signal()
+        self.specials += [
+            Instance("MMCME2_ADV",
+                     p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
+                     o_LOCKED=pll_ss_locked,
+
+                     # VCO
+                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
+                     p_CLKFBOUT_MULT_F=56.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
+                     i_CLKIN1=clk50, i_CLKFBIN=ss_fb, o_CLKFBOUT=ss_fb,
+
+                     # pix clk
+                     p_CLKOUT0_DIVIDE_F=14, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=clk50_ss,
+                     ),
+            Instance("BUFG", i_I=clk50_ss, o_O=clk50_ss_buf),
+        ]
+
+        platform.add_platform_command(
+            "set_property CLOCK_DEDICATED_ROUTE BACKBONE [get_nets clk50_IBUF]")
 
         pll_fb_bufg = Signal()
         self.specials += [
@@ -347,7 +347,7 @@ class CRG(Module):
                      # VCO @ 1600 MHz
                      p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                      p_CLKFBOUT_MULT=32, p_DIVCLK_DIVIDE=1,
-                     i_CLKIN1=clk50, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb, # change from clk50 to i_CLKIN1=clk50_ss_buf
+                     i_CLKIN1=clk50_ss_buf, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb, # change from clk50 to i_CLKIN1=clk50_ss_buf
 
                      # 100 MHz
                      p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
@@ -377,9 +377,9 @@ class CRG(Module):
             Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
             Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
             Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
-            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst ), # add | ~pll_ss_locked when using SS
+            AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~pll_ss_locked  ), # add | ~pll_ss_locked when using SS
             AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
-            AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst)
+            AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~pll_ss_locked )
         ]
 
         reset_counter = Signal(4, reset=15)

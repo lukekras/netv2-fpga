@@ -301,11 +301,14 @@ int hdmi_in1_calibrate_delays(int freq)
 	// however due to another bug the clock is reporting at 1/2 freq so we compensate here for that
 	phase_detector_delay = 10000000/(4*freq*iodelay_tap_duration);
 	printf("HDMI in1 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
-	
-	for(i=0; i<phase_detector_delay; i++) {
+
+	// twiddle with the delays differentially, also looks like rounding "later" works better...
+	for(i=0; i<phase_detector_delay + 1; i++) {
 		hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
-		hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 		hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+	}
+	for(i=0; i<phase_detector_delay + 1; i++) {
+		hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 	}
 	return 1;
 }

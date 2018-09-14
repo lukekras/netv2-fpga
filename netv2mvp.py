@@ -465,7 +465,7 @@ class BaseSoC(SoCSDRAM):
 
         self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu_or_bridge.debug_bus, 0x10)
 
-        self.submodules.crg = CRG(platform, use_ss=True)
+        self.submodules.crg = CRG(platform, use_ss=False)
         self.submodules.dna = dna.DNA()
         self.submodules.xadc = xadc.XADC()
 

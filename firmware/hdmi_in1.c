@@ -298,17 +298,12 @@ int hdmi_in1_calibrate_delays(int freq)
 	  (78 ps taps on 7-series) */
 	// 148.5 pixclk * 10 = 1485MHz bitrate = 0.673ns window
 	// 10e6/(2*freq*39) = 8 = 312 ps delay
-	// however due to another bug the clock is reporting at 1/2 freq so we compensate here for that
-	phase_detector_delay = 10000000/(4*freq*iodelay_tap_duration);
+	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration) + 3; // <<<< why is this +3 necessary?
 	printf("HDMI in1 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
-
-	// twiddle with the delays differentially, also looks like rounding "later" works better...
-	for(i=0; i<phase_detector_delay + 1; i++) {
+	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
-		hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
-	}
-	for(i=0; i<phase_detector_delay + 1; i++) {
 		hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+		hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 	}
 	return 1;
 }
@@ -496,7 +491,7 @@ void hdmi_in1_service(int freq)
 	    if(hdmi_in1_locked) {
 	      if(hdmi_in1_clocking_locked_filtered()) {
 		//		service_dma();
-		if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/2)) {
+		if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/4)) {
 		  hdmi_in1_data0_wer_update_write(1);
 		  hdmi_in1_data1_wer_update_write(1);
 		  hdmi_in1_data2_wer_update_write(1);

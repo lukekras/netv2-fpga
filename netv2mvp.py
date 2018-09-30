@@ -840,7 +840,7 @@ class VideoOverlaySoC(BaseSoC):
 
         ###############  hdmi out 1 (overlay rgb)
 
-        out_dram_port = self.sdram.crossbar.get_port(mode="read", cd="pix_o", dw=32, reverse=True)
+        out_dram_port = self.sdram.crossbar.get_port(mode="read", clock_domain="pix_o", data_width=32, reverse=True)
         # this core seems to starve more than the in core, so the FIFO is deeper at 2048. A 1024 depth leads to some frame tearing
         # especially when the CPU activity is high when loaded at 1080p60
         self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=2048, genlock_stream=hdmi_in0_timing)

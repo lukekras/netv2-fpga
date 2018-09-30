@@ -436,6 +436,7 @@ class CRG(Module):
             )
         self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("sys4x"), i_RST=ic_reset)      # sys4x
 
+iodelay_clk_freq = int(400e6)  # set for multiple functions
 
 class BaseSoC(SoCSDRAM):
     csr_peripherals = [
@@ -473,7 +474,6 @@ class BaseSoC(SoCSDRAM):
         platform.add_period_constraint(self.crg.cd_sys.clk, period_ns(100e6))
 
         # sdram
-        iodelay_clk_freq = int(400e6)
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
         self.ddrphy.settings.add_electrical_settings(rtt_nom='40ohm', rtt_wr='60ohm', ron='40ohm') # TODO revisit for 100T
         self.add_constant("IDELAYCTRL_CLOCK_FREQUENCY", int(iodelay_clk_freq))
@@ -723,7 +723,7 @@ class VideoOverlaySoC(BaseSoC):
         ########## hdmi in 0 (raw tmds)
         hdmi_in0_pads = platform.request("hdmi_in", 0)
         self.submodules.hdmi_in0_freq = FrequencyMeter(period=self.clk_freq)
-        self.submodules.hdmi_in0 = hdmi_in0 = HDMIIn(hdmi_in0_pads, device="xc7", split_mmcm=True, hdmi=True)
+        self.submodules.hdmi_in0 = hdmi_in0 = HDMIIn(hdmi_in0_pads, device="xc7", split_mmcm=True, hdmi=True, iodelay_clk_freq=iodelay_clk_freq)
         self.comb += self.hdmi_in0_freq.clk.eq(self.hdmi_in0.clocking.cd_pix.clk)
         # don't add clock timings here, we add a root clock constraint that derives the rest automatically
 
@@ -793,6 +793,7 @@ class VideoOverlaySoC(BaseSoC):
                                          mode="rgb",
                                          hdmi=True,
                                          n_dma_slots=2,
+                                         iodelay_clk_freq = iodelay_clk_freq,
                                           )
         self.comb += self.hdmi_in1_freq.clk.eq(self.hdmi_in1.clocking.cd_pix.clk)
 

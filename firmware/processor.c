@@ -552,9 +552,7 @@ void processor_start(int mode) {
 
   pattern_fill_framebuffer(m->h_active, m->v_active);
   
-  printf(".");
   mmcm_config_for_clock(m->pixel_clock);
-  printf(".");
   fb_set_mode(m);
   //	const struct video_timing *n = &video_modes[11]; // fix to 1080p @ 60Hz
   //	edid_set_mode(n);

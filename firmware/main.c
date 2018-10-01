@@ -28,6 +28,7 @@ int main(void)
 	uart_init();
 
 	//	hdmi_out0_i2c_init();
+	hdcp_hpd_ena_write(1);  // de-assert hot plug detect while booting
 
 	puts("\nNeTV2 software built "__DATE__" "__TIME__);
 
@@ -40,6 +41,8 @@ int main(void)
 
 	ci_prompt();
 
+	hdcp_hpd_ena_write(0); // release hot plug detect once we're into the main loop
+	
 	while(1) {
 	  processor_service();
 	  ci_service();

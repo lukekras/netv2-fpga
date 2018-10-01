@@ -675,12 +675,12 @@ void init_rect(int mode) {
 
   int h_margin = 15;
   int v_margin = 10;
-  int rect_thresh = 8; // reasonable for magic mirror use, which is mostly a black UI
+  int rect_thresh = 20; // reasonable for magic mirror use, which is mostly a black UI
   rectangle_hrect_start_write(h_margin);
   rectangle_hrect_end_write(m->h_active - h_margin);
   rectangle_vrect_start_write(v_margin);
   rectangle_vrect_end_write(m->v_active - v_margin);
-  rectangle_rect_thresh_write(8);
+  rectangle_rect_thresh_write(rect_thresh);
   
   hdmi_core_out0_dma_delay_base_write(120);  // this helps align the DMA transfer through various delay offsets
   // empricially determined, will shift around depending on what you do in the overlay video pipe, e.g.

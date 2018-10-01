@@ -23,12 +23,12 @@ void __stack_chk_fail(void) {
 
 int main(void)
 {
+	hdcp_hpd_ena_write(1);  // de-assert hot plug detect while booting
 	irq_setmask(0);
 	irq_setie(1);
 	uart_init();
 
 	//	hdmi_out0_i2c_init();
-	hdcp_hpd_ena_write(1);  // de-assert hot plug detect while booting
 
 	puts("\nNeTV2 software built "__DATE__" "__TIME__);
 

@@ -655,22 +655,14 @@ void ci_prompt(void)
 	wprintf("RUNTIME>");
 }
 
-void init_rect(void);
+void init_rect(int mode);
 
-void init_rect(void) {
-  wprintf("enabling video_out0 writing\r\n");
+void init_rect(int mode) {
+  const struct video_timing *m = &video_modes[mode];
+
   hdmi_core_out0_initiator_enable_write(0);
 
-#if 1		  // 1 for 1080, 0 for 720
-  const struct video_timing *m = &video_modes[12]; // change to 12 for 1080p, 9 for 720p
-  m = &video_modes[12];
-#else
-  const struct video_timing *m = &video_modes[9];
-  m = &video_modes[9];
-#endif
-  
   hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-  //		  hdmi_core_out0_initiator_base_write(0x0);
 		  
   hdmi_core_out0_initiator_hres_write(m->h_active);
   hdmi_core_out0_initiator_hsync_start_write(m->h_active + m->h_sync_offset);
@@ -683,23 +675,14 @@ void init_rect(void) {
   
   hdmi_core_out0_initiator_length_write(m->h_active*m->v_active*4);
 
-#if 1		  
-  rectangle_hrect_start_write(15);
-  rectangle_hrect_end_write(1910);
-  rectangle_vrect_start_write(10);
-  rectangle_vrect_end_write(1070);
-  rectangle_rect_thresh_write(20); // "reasonable" default for magic mirror use
-#else
-  rectangle_hrect_start_write(10);
-  rectangle_hrect_end_write(1270);
-  rectangle_vrect_start_write(10);
-  rectangle_vrect_end_write(710);
-  rectangle_rect_thresh_write(128); // "reasonable" default
-#endif
-  
-  wprintf("out hres %d, hscan %d\r\n", hdmi_core_out0_initiator_hres_read(), hdmi_core_out0_initiator_hscan_read());
-  wprintf("out vres %d, vscan %d\r\n", hdmi_core_out0_initiator_vres_read(), hdmi_core_out0_initiator_vscan_read());
-  wprintf("out length %d\r\n", hdmi_core_out0_initiator_length_read());
+  int h_margin = 10;
+  int v_margin = 10;
+  int rect_thresh = 8; // reasonable for magic mirror use, which is mostly a black UI
+  rectangle_hrect_start_write(h_margin);
+  rectangle_hrect_end_write(m->h_active - h_margin);
+  rectangle_vrect_start_write(v_margin);
+  rectangle_vrect_end_write(m->v_active - v_margin);
+  rectangle_rect_thresh_write(8);
   
   hdmi_core_out0_dma_delay_base_write(120);  // this helps align the DMA transfer through various delay offsets
   // empricially determined, will shift around depending on what you do in the overlay video pipe, e.g.
@@ -948,7 +931,7 @@ void ci_service(void)
 			if(found == 0)
 				wprintf("%s port has no EDID capabilities\r\n", token);
 		} else if(strcmp(token, "rect") == 0 ) {
-		  init_rect();
+		  init_rect(config_get(CONFIG_KEY_RESOLUTION));
 		} else if(strcmp(token, "setrect") == 0 ) {
 		  const struct video_timing *m = &video_modes[12];
 		  m = &video_modes[12];

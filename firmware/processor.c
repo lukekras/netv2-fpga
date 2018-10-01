@@ -17,6 +17,7 @@
 #include "mmcm.h"
 #include "processor.h"
 #include "km.h"
+#include "config.h"
 
 /*
  ----------------->>> Time ----------->>>
@@ -534,8 +535,6 @@ void processor_init(void)
 	pattern = COLOR_BAR_PATTERN;
 }
 
-extern void init_rect(void);
-
 void processor_start(int mode) {
   const struct video_timing *m = &video_modes[mode];
   
@@ -568,7 +567,7 @@ void processor_start(int mode) {
   hdmi_in1_edid_hpd_en_write(1);
 
   hdcp_init();
-  init_rect();
+  init_rect(config_get(CONFIG_KEY_RESOLUTION));
 
   hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
 }

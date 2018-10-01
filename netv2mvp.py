@@ -713,7 +713,7 @@ class VideoOverlaySoC(BaseSoC):
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 
-    def __init__(self, platform, *args, **kwargs):
+    def __init__(self, platform, part, *args, **kwargs):
         BaseSoC.__init__(self, platform, *args, **kwargs)
 
         # # #
@@ -972,13 +972,18 @@ class VideoOverlaySoC(BaseSoC):
         ]
 
         self.comb += platform.request("fpga_led2", 0).eq(self.hdmi_in0.clocking.locked)  # RX0 green
-#        self.comb += platform.request("fpga_led3", 0).eq(0)  # RX0 red
-        zero32 = Signal(32)
-        self.comb += zero32.eq(0)
-        self.comb += platform.request("fpga_led3", 0).eq(self.cpu_or_bridge.interrupt == zero32)  # RX0 red (stuck high most of the time)
+        self.comb += platform.request("fpga_led3", 0).eq(0)  # RX0 red
 #        self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
-        self.sync += platform.request("fpga_led4", 0).eq(hdcp.debug.storage)  # connect for GPIO debug (toggling like mad)
-        self.comb += platform.request("fpga_led5", 0).eq(self.hdmi_in1.clocking.locked)  # OV0 green
+#        self.sync += platform.request("fpga_led4", 0).eq(hdcp.debug.storage)  # connect for GPIO debug (toggling like mad)
+#        self.comb += platform.request("fpga_led5", 0).eq(self.hdmi_in1.clocking.locked)  # OV0 green
+
+        # set an internal LED color based on the FPGA type installed -- for quick factory determination of PCB type (FPGA P/N covered by heatsink)
+        if part == "35": # green if 35T
+            self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(1)  # OV0 green
+        else: # red if 100T
+            self.comb += platform.request("fpga_led4", 0).eq(1)  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(0)  # OV0 green
 
         # analyzer ethernet
         from liteeth.phy.rmii import LiteEthPHYRMII
@@ -1074,7 +1079,7 @@ def main():
     if args.target == "base":
         soc = BaseSoC(platform)
     elif args.target == "video_overlay":
-        soc = VideoOverlaySoC(platform)
+        soc = VideoOverlaySoC(platform, part=args.part)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)

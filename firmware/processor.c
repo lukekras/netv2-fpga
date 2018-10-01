@@ -429,6 +429,9 @@ static void fb_set_mode(const struct video_timing *mode)
 	fb_clkgen_write(clock_m, clock_d);
 }
 
+// Below are a selection of real & synthetic EDIDs that NeTV2 can present to the RPi
+// the RPi is very picky about the EDID it gets -- so I'm leaving in a selection of
+// EDIDs to help with debugging connection issues in case the Pi has a firmware update
 unsigned char lg_edid[256] = {
   0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00, 0x1e, 0x6d, 0xcf, 0x56, 0x01, 0x01, 0x01, 0x01,
   0x08, 0x14, 0x01, 0x03, 0x80, 0x35, 0x1e, 0x78, 0x0a, 0x3d, 0x85, 0xa6, 0x56, 0x4a, 0x9a, 0x24,
@@ -568,7 +571,6 @@ void processor_start(int mode) {
   init_rect();
 
   hdmi_core_out0_initiator_base_write(hdmi_in1_framebuffer_base(hdmi_in1_fb_index));
-  printf( "hdmi_out0: %x\n", hdmi_core_out0_initiator_base_read() );
 }
 
 void processor_set_hdmi_out0_source(int source) {

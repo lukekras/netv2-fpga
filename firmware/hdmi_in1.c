@@ -175,17 +175,13 @@ void hdmi_in1_init_video(int hres, int vres)
 #ifdef  HDMI_IN1_INTERRUPT
 	unsigned int mask;
 
-	printf( "setting up HDMI1 interrupts, hres: %d vres: %d\n", hdmi_in1_hres, hdmi_in1_vres );
-	
 	hdmi_in1_dma_frame_size_write(hres*vres*4);
 	hdmi_in1_fb_slot_indexes[0] = 0;
 	hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(0));
-	printf( "slot0 %x\n", hdmi_in1_dma_slot0_address_read() );
 	hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
 
 	hdmi_in1_fb_slot_indexes[1] = 1;
 	hdmi_in1_dma_slot1_address_write(hdmi_in1_framebuffer_base(1));
-	printf( "slot1 %x\n", hdmi_in1_dma_slot1_address_read() );
 	hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
 	
 	hdmi_in1_next_fb_index = 1;
@@ -195,35 +191,9 @@ void hdmi_in1_init_video(int hres, int vres)
 	hdmi_in1_dma_ev_enable_write(0x1);
 	mask = irq_getmask();
 	mask |= 1 << HDMI_IN1_INTERRUPT;
-	printf( "irq mask: %x\n", mask );
 	irq_setmask(mask);
 
 #endif
-
-#if 0	// legacy code to debug interrupt/dma issue, remove once alt path validated
-	// always initialized even if there is no interrupts
-#if 0
-	hdmi_in1_dma_frame_size_write(1920*1080*4);
-	hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(0));
-	hdmi_in1_dma_slot1_address_write(hdmi_in1_framebuffer_base(1));
-
-	hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_EMPTY);
-	hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_EMPTY);
-	
-	hdmi_in1_dma_ev_enable_write(0);
-#else
-
-	hdmi_in1_dma_frame_size_write(1920*1080*4);
-	hdmi_in1_dma_start_address_write(hdmi_in1_framebuffer_base(0));
-
-	printf( "hdmi_in1 frame size: %x\n", hdmi_in1_dma_frame_size_read() );
-	printf( "hdmi_in1 addr start: %x\n", hdmi_in1_dma_start_address_read() );
-
-	hdmi_in1_dma_address_valid_write(0);
-#endif
-#endif
-	
-	
 }
 
 void hdmi_in1_disable(void)

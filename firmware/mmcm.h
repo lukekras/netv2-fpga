@@ -31,5 +31,6 @@ int hdmi_in1_clocking_mmcm_read(int adr);
 
 void mmcm_config_for_clock(int freq);
 void mmcm_dump(void);
+void mmcm_dump_code(void);
 
 #endif

@@ -964,23 +964,6 @@ void ci_service(void)
 		    // may need to add a delay to allow write->read access time
 		    wprintf( "%02x ", i2c_snoop_edid_snoop_dat_read() );
 		  }
-		} else if( strcmp(token, "inc") == 0 ) {
-#if 0
-		  int run = 0;
-		  flush_cpu_icache();
-		  flush_cpu_dcache();
-		  hdmi_in1_dma_address_valid_write(1);
-		  hdmi_in1_dma_dma_go_write(1);
-#else
-		  printf( "not debugging dma\n" );
-#endif
-#if 0
-		  while(hdmi_in1_dma_dma_running_read()) {
-		    wprintf( "run%d ", run++ );
-		    flush_cpu_icache();
-		    flush_cpu_dcache();
-		  }
-#endif
 		} else if (strcmp(token, "dvimode0") == 0 ) {
 		  hdmi_in0_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode0") == 0 ) {
@@ -1007,38 +990,3 @@ void ci_service(void)
 	}
 }
 
-/*
-		else if(strcmp(token, "dma") == 0 ) {
-		wprintf("initiating DMA on HDMI1\r\n");
-		  hdmi_in1_dma_ev_enable_write(0x3);
-		}
-
- else if( strcmp(token, "inc" == 0 ) ) {
-		  int hres = 1920;
-		  int vres = 1080;
-		  unsigned int mask;
-		  
-		  hdmi_in1_dma_frame_size_write(hres*vres*4);
-		  hdmi_in1_fb_slot_indexes[0] = 0;
-		  hdmi_in1_dma_slot0_address_write(hdmi_in1_framebuffer_base(0));
-		  printf( "slot0 %x\n", hdmi_in1_framebuffer_base(0) );
-		  hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
-
-#if 0
-		  hdmi_in1_fb_slot_indexes[1] = 1;
-		  hdmi_in1_dma_slot1_address_write(hdmi_in1_framebuffer_base(1));
-		  printf( "slot1 %x\n", hdmi_in1_framebuffer_base(1) );
-		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
-		  hdmi_in1_next_fb_index = 2;
-#endif
-		  
-		  hdmi_in1_dma_ev_pending_write(hdmi_in1_dma_ev_pending_read());
-		  //		  hdmi_in1_dma_ev_enable_write(0x3);
-		  hdmi_in1_dma_ev_enable_write(0x1);
-
-		  mask = irq_getmask();
-		  mask |= 1 << HDMI_IN1_INTERRUPT;
-		  printf( "irq mask: %x\n", mask );
-		  irq_setmask(mask);
-		}
-*/

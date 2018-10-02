@@ -295,6 +295,7 @@ def csr_map_update(csr_map, csr_peripherals):
 def period_ns(freq):
     return 1e9/freq
 
+iodelay_clk_freq = int(400e6)  # set for multiple functions, valid values are 200e6 and 400e6
 
 class CRG(Module):
     def __init__(self, platform, use_ss=False):
@@ -425,18 +426,26 @@ class CRG(Module):
                 AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst)
             ]
 
-
-        reset_counter = Signal(4, reset=15)
-        ic_reset = Signal(reset=1)
-        self.sync.clk200 += \
-            If(reset_counter != 0,
-                reset_counter.eq(reset_counter - 1)
-            ).Else(
-                ic_reset.eq(0)
-            )
-        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("sys4x"), i_RST=ic_reset)      # sys4x
-
-iodelay_clk_freq = int(400e6)  # set for multiple functions
+        if iodelay_clk_freq == 200e6:
+            reset_counter = Signal(4, reset=15)
+            ic_reset = Signal(reset=1)
+            self.sync.clk200 += \
+                If(reset_counter != 0,
+                    reset_counter.eq(reset_counter - 1)
+                ).Else(
+                    ic_reset.eq(0)
+                )
+            self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
+        else:
+            reset_counter = Signal(4, reset=15)
+            ic_reset = Signal(reset=1)
+            self.sync.sys4x += \
+                If(reset_counter != 0,
+                    reset_counter.eq(reset_counter - 1)
+                ).Else(
+                    ic_reset.eq(0)
+                )
+            self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("sys4x"), i_RST=ic_reset)
 
 class BaseSoC(SoCSDRAM):
     csr_peripherals = [

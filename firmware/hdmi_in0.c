@@ -224,7 +224,7 @@ int hdmi_in0_calibrate_delays(int freq)
 	/* preload slave phase detector idelay with 90° phase shift
 	  (78 ps taps on 7-series) */
 	printf( "idelay_freq: %d\n", idelay_freq );
-	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration) - 0; // best performance is between 0 and -1
+	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration) + 0; // best performance is between 0 and -1
 	printf("HDMI in0 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
 	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);

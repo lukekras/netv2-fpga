@@ -327,7 +327,7 @@ int hdmi_in1_adjust_phase(void)
 
 static void phase_delay(void) {
   volatile int i;
-  for( i = 0; i < 1000; i++ )
+  for( i = 0; i < 10; i++ )
     ;
 }
 

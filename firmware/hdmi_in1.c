@@ -325,6 +325,12 @@ int hdmi_in1_adjust_phase(void)
 	return 1;
 }
 
+static void phase_delay(void) {
+  volatile int i;
+  for( i = 0; i < 1000; i++ )
+    ;
+}
+
 int hdmi_in1_init_phase(void)
 {
 	int o_d0, o_d1, o_d2;
@@ -337,6 +343,7 @@ int hdmi_in1_init_phase(void)
 		for(j=0;j<1000;j++) {
 			if(!hdmi_in1_adjust_phase())
 				return 0;
+			phase_delay();
 		}
 		if((abs(hdmi_in1_d0 - o_d0) < 4) && (abs(hdmi_in1_d1 - o_d1) < 4) && (abs(hdmi_in1_d2 - o_d2) < 4))
 			return 1;

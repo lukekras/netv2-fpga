@@ -461,10 +461,10 @@ class BaseSoC(SoCSDRAM):
             ident="NeTV2 LiteX Base SoC",
             reserve_nmi_interrupt=False,
             cpu_type="vexriscv",
-            cpu_variant="debug",
+#            cpu_variant="debug",
             **kwargs)
 
-        self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu_or_bridge.debug_bus, 0x10)
+#        self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu_or_bridge.debug_bus, 0x10)
 
         self.submodules.crg = CRG(platform, use_ss=False)
         self.submodules.dna = dna.DNA()
@@ -1034,7 +1034,6 @@ class VideoOverlaySoC(BaseSoC):
         from litescope import LiteScopeAnalyzer
 
         analyzer_signals = [
-            self.cpu_or_bridge.interrupt,
             self.sdram.controller.refresher.timer.done,
         ]
         self.platform.add_false_path_constraints( # for I2C snoop -> HDCP, and also covers logic analyzer path when configured

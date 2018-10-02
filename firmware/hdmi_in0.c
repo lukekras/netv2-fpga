@@ -224,7 +224,7 @@ int hdmi_in0_calibrate_delays(int freq)
 	/* preload slave phase detector idelay with 90° phase shift
 	  (78 ps taps on 7-series) */
 	printf( "idelay_freq: %d\n", idelay_freq );
-	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration);
+	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration) - 0; // best performance is between 0 and -1
 	printf("HDMI in0 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
 	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
@@ -281,7 +281,9 @@ int hdmi_in0_adjust_phase(void)
 	return 1;
 }
 
-void hdmi_in0_set_phase(int converged_phase[3]) {
+void hdmi_in0_set_phase(int *converged_phase);
+
+void hdmi_in0_set_phase(int *converged_phase) {
   int delta;
   int i;
 
@@ -338,6 +340,14 @@ void hdmi_in0_set_phase(int converged_phase[3]) {
   
 }
 
+// new compiler, vexriscv runs too fast for phase init to work well
+// put some delay in the loop...
+static void phase_delay(void) {
+  volatile int i;
+  for( i = 0; i < 1000; i++ )
+    ;
+}
+
 int hdmi_in0_init_phase(void)
 {
 	int o_d0, o_d1, o_d2;
@@ -345,6 +355,7 @@ int hdmi_in0_init_phase(void)
 
 	if( has_converged ) {
 	  // use the last convergence as the starting point guess for initialization
+	  printf( "using last converged phase as starting point for phase init\n" );
 	  hdmi_in0_set_phase(converged_phase);
 	}
 
@@ -353,8 +364,9 @@ int hdmi_in0_init_phase(void)
 		o_d1 = hdmi_in0_d1;
 		o_d2 = hdmi_in0_d2;
 		for(j=0;j<1000;j++) {
-			if(!hdmi_in0_adjust_phase())
-				return 0;
+		  if(!hdmi_in0_adjust_phase())
+		    return 0;
+		  phase_delay();
 		}
 		if((abs(hdmi_in0_d0 - o_d0) < 4) && (abs(hdmi_in0_d1 - o_d1) < 4) && (abs(hdmi_in0_d2 - o_d2) < 4))
 			return 1;

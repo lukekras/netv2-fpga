@@ -46,7 +46,7 @@ firmware.elf: $(OBJECTS)
 	$(LD) $(LDFLAGS) \
 		-T linker.ld \
 		-N -o $@ \
-		 $(NETV2_DIR)/software/libbase/crt0-$(CPU).o \
+		 $(NETV2_DIR)/software/libbase/crt0-$(CPU)-ctr.o \
 		$(OBJECTS) \
 		-L$(NETV2_DIR)/software/libbase \
 		-L$(NETV2_DIR)/software/libcompiler_rt \

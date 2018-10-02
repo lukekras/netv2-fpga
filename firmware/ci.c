@@ -616,7 +616,8 @@ static void encoder_off(void)
 
 static void debug_mmcm(void)
 {
-	mmcm_dump();
+  //	mmcm_dump();
+  mmcm_dump_code();
 }
 
 #ifdef CSR_SDRAM_CONTROLLER_BANDWIDTH_UPDATE_ADDR

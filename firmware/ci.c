@@ -931,6 +931,10 @@ void ci_service(void)
 				wprintf("%s port has no EDID capabilities\r\n", token);
 		} else if(strcmp(token, "rect") == 0 ) {
 		  init_rect(config_get(CONFIG_KEY_RESOLUTION));
+		} else if(strcmp(token, "nudge") == 0 ) {
+		  int chan = strtol(get_token(&str), NULL, 0);
+		  int amount = strtol(get_token(&str), NULL, 0);
+		  hdmi_in0_nudge_eye(chan, amount);
 		} else if(strcmp(token, "setrect") == 0 ) {
 		  const struct video_timing *m = &video_modes[12];
 		  m = &video_modes[12];

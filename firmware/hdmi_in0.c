@@ -47,8 +47,8 @@ static int hdmi_in0_hres, hdmi_in0_vres;
 
 extern void processor_update(void);
 
-static int has_converged = 0;
-static int converged_phase[3] = {0,0,0};
+static int has_converged = 1;
+static int converged_phase[3] = {2,-16,-16};
 
 #ifdef HDMI_IN0_INTERRUPT
 void hdmi_in0_isr(void)
@@ -201,6 +201,8 @@ void hdmi_in0_print_status(void)
 		hdmi_in0_resdetection_vres_read());
 }
 
+int hdmi_in0_eye[3] = {0,0,0};
+
 int hdmi_in0_calibrate_delays(int freq)
 {
 	int i, phase_detector_delay;
@@ -220,6 +222,7 @@ int hdmi_in0_calibrate_delays(int freq)
 	hdmi_in0_data1_cap_phase_reset_write(1);
 	hdmi_in0_data2_cap_phase_reset_write(1);
 	hdmi_in0_d0 = hdmi_in0_d1 = hdmi_in0_d2 = 0;
+	hdmi_in0_eye[0] = hdmi_in0_eye[1] = hdmi_in0_eye[2] = 0;
 
 	/* preload slave phase detector idelay with 90° phase shift
 	  (78 ps taps on 7-series) */
@@ -228,10 +231,57 @@ int hdmi_in0_calibrate_delays(int freq)
 	printf("HDMI in0 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
 	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+		hdmi_in0_eye[0]++;
 		hdmi_in0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+		hdmi_in0_eye[1]++;
 		hdmi_in0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+		hdmi_in0_eye[2]++;
 	}
 	return 1;
+}
+
+void hdmi_in0_nudge_eye(int chan, int amount) {
+  int i;
+  if( chan == 0 ) {
+    if( amount > 0 ) {
+      for( i = 0; i < amount; i++ ) {
+	hdmi_in0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+	hdmi_in0_eye[0]++;
+      }
+    } else if( amount < 0 ) {
+      for( i = 0; i < -amount; i++ ) {
+	hdmi_in0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_DEC);
+	hdmi_in0_eye[0]--;
+      }
+    }
+  }
+  if( chan == 1 ) {
+    if( amount > 0 ) {
+      for( i = 0; i < amount; i++ ) {
+	hdmi_in0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+	hdmi_in0_eye[1]++;
+      }
+    } else if( amount < 0 ) {
+      for( i = 0; i < -amount; i++ ) {
+	hdmi_in0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_DEC);
+	hdmi_in0_eye[1]--;
+      }
+    }
+  }
+  if( chan == 2 ) {
+    if( amount > 0 ) {
+      for( i = 0; i < amount; i++ ) {
+	hdmi_in0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+	hdmi_in0_eye[2]++;
+      }
+    } else if( amount < 0 ) {
+      for( i = 0; i < -amount; i++ ) {
+	hdmi_in0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_DEC);
+	hdmi_in0_eye[2]--;
+      }
+    }
+  }
+  printf( "hdmi in0 eye nudged: %d %d %d\n", hdmi_in0_eye[0], hdmi_in0_eye[1], hdmi_in0_eye[2] );
 }
 
 int hdmi_in0_adjust_phase(void)

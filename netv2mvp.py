@@ -427,7 +427,7 @@ class CRG(Module):
             ]
 
         if iodelay_clk_freq == 200e6:
-            reset_counter = Signal(4, reset=15)
+            reset_counter = Signal(4, reset=15) # 75ns @ 200MHz, min 59.28ns
             ic_reset = Signal(reset=1)
             self.sync.clk200 += \
                 If(reset_counter != 0,
@@ -437,7 +437,7 @@ class CRG(Module):
                 )
             self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
         else:
-            reset_counter = Signal(4, reset=15)
+            reset_counter = Signal(4, reset=31)  # 77.5ns @ 400MHz, min 59.28ns
             ic_reset = Signal(reset=1)
             self.sync.sys4x += \
                 If(reset_counter != 0,

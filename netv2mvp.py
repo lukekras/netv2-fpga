@@ -638,6 +638,8 @@ class RectOpening(Module, AutoCSR):
         self.vrect_end = CSRStorage(12)
         self.rect_thresh = CSRStorage(8)
 
+        self.pipe_override = CSRStorage(1)
+
         self.rect_on = Signal()
 
         # counter for pixel position based on the incoming HDMI0 stream.
@@ -969,7 +971,11 @@ class VideoOverlaySoC(BaseSoC):
         self.comb += rect_thresh.eq(rectangle.rect_thresh.storage)
 
         self.sync.pix_o += [
-            If(rect_on & (hdmi_out0_rgb_d.r >= rect_thresh) & (hdmi_out0_rgb_d.g >= rect_thresh) & (hdmi_out0_rgb_d.b >= rect_thresh),
+            If(rectangle.pipe_override.storage,
+                 self.hdmi_out0_phy.sink.c0.eq(self.hdmi_in0.data0_charsync.data),
+                 self.hdmi_out0_phy.sink.c1.eq(self.hdmi_in0.data1_charsync.data),
+                 self.hdmi_out0_phy.sink.c2.eq(self.hdmi_in0.data2_charsync.data),
+            ).Elif(rect_on & (hdmi_out0_rgb_d.r >= rect_thresh) & (hdmi_out0_rgb_d.g >= rect_thresh) & (hdmi_out0_rgb_d.b >= rect_thresh),
                     self.hdmi_out0_phy.sink.c0.eq(encoder_blu.out),
                     self.hdmi_out0_phy.sink.c1.eq(encoder_grn.out),
                     self.hdmi_out0_phy.sink.c2.eq(encoder_red.out),

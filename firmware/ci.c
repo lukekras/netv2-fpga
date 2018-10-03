@@ -983,6 +983,8 @@ void ci_service(void)
 		} else if (strcmp(token, "run") == 0 ) {
 		  hdmi_in1_dma_slot0_status_write(DVISAMPLER_SLOT_LOADED);
 		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
+		} else if (strcmp(token, "override") == 0 ) {
+		  rectangle_pipe_override_read() ? rectangle_pipe_override_write(0) : rectangle_pipe_override_write(1);
 		} else {
 		  help_debug();
 		}

@@ -760,10 +760,10 @@ class VideoOverlaySoC(BaseSoC):
             self.hdmi_in0.clocking.cd_pix5x_o.clk
         )
 
-        hdmi_out0_pads = platform.request("hdmi_out", 0)
-        self.submodules.hdmi_out0_clk_gen = S7HDMIOutEncoderSerializer(hdmi_out0_pads.clk_p, hdmi_out0_pads.clk_n, bypass_encoder=True)
+        hdmi_out0_pads = platform.request("hdmi_out", 0)  ## TODO: pull latest litevideo and re-validate pix_o mapping
+        self.submodules.hdmi_out0_clk_gen = ClockDomainsRenamer({"pix":"pix_o", "pix5x":"pix5x_o"})(S7HDMIOutEncoderSerializer(hdmi_out0_pads.clk_p, hdmi_out0_pads.clk_n, bypass_encoder=True))
         self.comb += self.hdmi_out0_clk_gen.data.eq(Signal(10, reset=0b0000011111))
-        self.submodules.hdmi_out0_phy = S7HDMIOutPHY(hdmi_out0_pads, mode="raw")
+        self.submodules.hdmi_out0_phy = ClockDomainsRenamer({"pix":"pix_o", "pix5x":"pix5x_o"})(S7HDMIOutPHY(hdmi_out0_pads, mode="raw"))
 
         # hdmi over
         self.comb += [

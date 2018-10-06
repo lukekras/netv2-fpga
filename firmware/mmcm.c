@@ -367,11 +367,11 @@ void hdmi_in_0_config_120_240mhz_table() {
 
   printf("setting optimized bandwdith on hdmi in 0\n");
   int i;
-  for( i = 0; i < MTE / 2; i += 2 ) {
+  for( i = 0; i < MTE; i += 2 ) {
     hdmi_in0_clocking_mmcm_write(hdmi0_mmcm_opt[i], hdmi0_mmcm_opt[i+1]);
   }
 
-  for( i = 0; i < MTE / 2; i += 2 ) {
+  for( i = 0; i < MTE; i += 2 ) {
     hdmi_in0_clocking_mmcm_write_o(hdmi0_plle[i], hdmi0_plle[i+1]);
   }
 }
@@ -381,7 +381,7 @@ void hdmi_in_1_config_120_240mhz_table() {
   int hdmi1_mmcm[MTE] = {0x28, 0xffff, 0x9, 0x80, 0x8, 0x1083, 0xa, 0x1082, 0xb, 0x0, 0xc, 0x1041, 0xd, 0x40, 0xe, 0x41, 0xf, 0x40, 0x10, 0x41, 0x11, 0x40, 0x6, 0x41, 0x7, 0x40, 0x12, 0x41, 0x13, 0x40, 0x16, 0x1041, 0x14, 0x1083, 0x15, 0x80, 0x18, 0x3e8, 0x19, 0x3801, 0x1a, 0xbbe9, 0x4e, 0x9108, 0x4f, 0x1900};
 
   int i;
-  for( i = 0; i < MTE / 2; i += 2 ) {
+  for( i = 0; i < MTE; i += 2 ) {
     hdmi_in1_clocking_mmcm_write(hdmi1_mmcm[i], hdmi1_mmcm[i+1]);
   }
 }

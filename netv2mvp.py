@@ -142,11 +142,8 @@ _io = [
         Subsignal("data2_n", Pins("H22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("scl", Pins("T18"), IOStandard("LVCMOS33")),
         Subsignal("sda", Pins("V18"), IOStandard("LVCMOS33")),
-#        Subsignal("hpd_en", Pins("M22"), IOStandard("LVCMOS33")),  # RX0_FORCEUNPLUG
         Subsignal("hpd_notif", Pins("U17"), IOStandard("LVCMOS33"), Inverted()),  # HDMI_HPD_LL_N (note active low)
     ),
-
-    ("hpd_en", 0, Pins("M22"), IOStandard("LVCMOS33")),
 
     # using normal HDMI cable
     # ("hdmi_in", 1,
@@ -905,7 +902,7 @@ class VideoOverlaySoC(BaseSoC):
             hdcp.An.eq(i2c_snoop.An),
             hdcp.ctl_code.eq(hdmi_in0.decode_terc4.ctl_code),
         ]
-        self.comb += platform.request("hpd_en").eq(hdcp.hpd_ena.storage)
+        self.comb += platform.request("hdmi_rx0_forceunplug").eq(hdcp.hpd_ena.storage)
 
         ###### overlay pixel encoders
         self.submodules.encoder_red = encoder_red = ClockDomainsRenamer("pix_o")(Encoder())

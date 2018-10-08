@@ -78,6 +78,12 @@ int transform_source(int source) {
 extern unsigned char netv_edid_60hz[256];
 
 int test_video(void);
+/* 
+   Hardware configuration:
+     TX1 connected to RX0
+     TX0 connected to OVERLAY
+     Jumpers in SOURCE position
+ */
 int test_video(void) {
   int result = 0;
   int resdiff;
@@ -86,6 +92,7 @@ int test_video(void) {
   
   printf( "video test: " );
 
+  /////////// PLL TEST
   resdiff = result;
   if( hdmi_in0_resdetection_hres_read() != VIDEO_HACTIVE )
     result++;
@@ -110,6 +117,7 @@ int test_video(void) {
     num_err_printed++;
   }
 
+  /////////// DATA LINK TEST
   unsigned int *framebuffer = (unsigned int *)(MAIN_RAM_BASE + hdmi_in0_framebuffer_base(0));
   unsigned int expected;
   int last_event;
@@ -167,6 +175,9 @@ int test_video(void) {
     num_err_printed++;
   }
 
+  /////////// EDID/DDC TEST
+  // EDID TEST ESCAPES:
+  // RX0 SDA override high is not tested
   unsigned char edid[256];
   resdiff = result;
   result += hdmi_out0_read_edid(edid);
@@ -189,6 +200,8 @@ int test_video(void) {
   if( resdiff != result ) {
     printf( "  ERROR: hdmi_in1 DDC bus problem\n" );
   }
+
+  // next up: check CEC, HPD
   
 
   if( result == 0 ) {

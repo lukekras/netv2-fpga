@@ -10,3 +10,4 @@ build
 .vscode
 test/analyzer.csv
 test/csr.csv
+pycharm.env

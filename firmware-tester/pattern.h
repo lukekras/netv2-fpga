@@ -34,5 +34,6 @@ enum {
 void pattern_fill_framebuffer(int h_active, int m_active);
 void pattern_service(void);
 void pattern_next(void);
+void pattern_fill_framebuffer_test(int h_active, int w_active, int seed);
 
 #endif /* __PATTERN_H */

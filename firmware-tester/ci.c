@@ -54,6 +54,8 @@
 
 #include "ci.h"
 
+#include "tester.h"
+
 #define HDMI_IN0_MNEMONIC "RX0"
 #define HDMI_IN0_DESCRIPTION "Rx input"
 #define HDMI_IN1_MNEMONIC "OVERLAY"
@@ -1250,7 +1252,7 @@ void ci_service(void)
 		else if(strcmp(token, "nudge") == 0 ) {
 		  int chan = strtol(get_token(&str), NULL, 0);
 		  int amount = strtol(get_token(&str), NULL, 0);
-		  hdmi_in1_nudge_eye(chan, amount);
+		  hdmi_in0_nudge_eye(chan, amount);
 		} else if (strcmp(token, "dvimode0") == 0 ) {
 		  hdmi_in0_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode0") == 0 ) {
@@ -1260,6 +1262,8 @@ void ci_service(void)
 		  hdmi_in1_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode1") == 0 ) {
 		  hdmi_in1_decode_terc4_dvimode_write(0);
+		} else if (strcmp(token, "tester") == 0 ) {
+		  test_board(ALL_TESTS);
 		}
 #ifdef CSR_OPSIS_I2C_MASTER_W_ADDR
 		else if(strcmp(token, "opsis_eeprom") == 0) {

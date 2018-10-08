@@ -35,7 +35,8 @@
 #define VIDEO_IN_DEFAULT VIDEO_IN_PATTERN
 
 static const unsigned char config_defaults[CONFIG_KEY_COUNT] = {
-	PROCESSOR_MODE_1920_1080_60,    // Primary
+        PROCESSOR_MODE_720p_60,
+  //PROCESSOR_MODE_1920_1080_60,    // Primary
 	EDID_SECONDARY_MODE_OFF,        // Secondary
 	// Input config
 	true, // Input0

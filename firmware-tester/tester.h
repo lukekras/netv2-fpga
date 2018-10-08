@@ -1,0 +1,12 @@
+#define ALL_TESTS -1
+
+enum tests {
+  VIDEO_TEST = 0,
+  MAX_TESTS
+};
+
+#define VIDEO_LFSR_SEED 1
+
+int test_board(int test_number);
+unsigned int lfsr_next(void);
+void lfsr_init(int seed);

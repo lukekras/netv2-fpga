@@ -140,13 +140,12 @@ _io = [
         Subsignal("data1_n", Pins("J21"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data2_p", Pins("J22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data2_n", Pins("H22"), IOStandard("TMDS_33"), Inverted()),
-        Subsignal("scl", Pins("T18"), IOStandard("LVCMOS33")),
-        Subsignal("sda", Pins("V18"), IOStandard("LVCMOS33")),
+        Subsignal("scl", Pins("T18"), IOStandard("LVCMOS33"), Inverted()),
+        Subsignal("sda", Pins("V18"), IOStandard("LVCMOS33"), Inverted()),
+        Subsignal("sda_drv", Pins("F20"), IOStandard("LVCMOS33") ),  # this drives a 0 on SDA, DDC_SDA_PD
 #        Subsignal("hpd_en", Pins("M22"), IOStandard("LVCMOS33")),  # RX0_FORCEUNPLUG
         Subsignal("hpd_notif", Pins("U17"), IOStandard("LVCMOS33"), Inverted()),  # HDMI_HPD_LL_N (note active low)
     ),
-
-    ("hpd_en", 0, Pins("M22"), IOStandard("LVCMOS33")),
 
     # using normal HDMI cable
     ("hdmi_in", 1,
@@ -160,7 +159,8 @@ _io = [
         Subsignal("data2_n", Pins("AB22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("scl", Pins("W17"), IOStandard("LVCMOS33"), Inverted()),
         Subsignal("sda", Pins("R17"), IOStandard("LVCMOS33")),
-    ),
+        Subsignal("hpd_notif", Pins("V17"), IOStandard("LVCMOS33"), Inverted()),  # HDMI_HPD_LL_N (note active low)
+     ),
 
     # # using inverting jumper cable
     # ("hdmi_in", 1,
@@ -177,8 +177,8 @@ _io = [
     #  ),
 
     ("hdmi_out", 0,
-        Subsignal("clk_p", Pins("W19"), Inverted(), IOStandard("TMDS_33")),
-        Subsignal("clk_n", Pins("W20"), Inverted(), IOStandard("TMDS_33")),
+        Subsignal("clk_p", Pins("W19"), Inverted(), IOStandard("TMDS_33"), Inverted()),
+        Subsignal("clk_n", Pins("W20"), Inverted(), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_p", Pins("W21"), IOStandard("TMDS_33")),
         Subsignal("data0_n", Pins("W22"), IOStandard("TMDS_33")),
         Subsignal("data1_p", Pins("U20"), IOStandard("TMDS_33")),
@@ -202,8 +202,7 @@ _io = [
         Subsignal("sda", Pins("R16"), IOStandard("LVCMOS33")),
      ),
 
-    ("hdmi_sda_over_up", 0, Pins("G20"), IOStandard("LVCMOS33")),
-    ("hdmi_sda_over_dn", 0, Pins("F20"), IOStandard("LVCMOS33")), # must be mutex with the above
+    ("hdmi_sda_over_up", 0, Pins("G20"), IOStandard("LVCMOS33")), # must be mutex with sda_drv (F20) if used
 
     ("hdmi_rx0_forceunplug", 0, Pins("M22"), IOStandard("LVCMOS33")), # forces an HPD on the RX0/TX0 path
     ("hdmi_rx0_forceplug", 0, Pins("N22"), IOStandard("LVCMOS33")),   # this needs to be mutex with the above
@@ -898,7 +897,7 @@ class VideoOverlaySoC(BaseSoC):
             hdcp.An.eq(i2c_snoop.An),
             hdcp.ctl_code.eq(hdmi_in0.decode_terc4.ctl_code),
         ]
-        self.comb += platform.request("hpd_en").eq(hdcp.hpd_ena.storage)
+        self.comb += platform.request("hdmi_rx0_forceunplug").eq(hdcp.hpd_ena.storage)
 
         ###### overlay pixel encoders
         self.submodules.encoder_red = encoder_red = ClockDomainsRenamer("pix_o")(Encoder())
@@ -1095,7 +1094,7 @@ class TesterSoC(BaseSoC):
         # # #
 
         pix_freq = 148.50e6
-        mode = "ycbcr422"
+        mode = "rgb"
         if mode == "ycbcr422":
             dw = 16
         elif mode == "rgb":
@@ -1111,15 +1110,16 @@ class TesterSoC(BaseSoC):
                                                           fifo_depth=512,
                                                           iodelay_clk_freq=iodelay_clk_freq,
                                                           device = "xc7",
+                                                          hdmi=True,
+                                                          mode=mode,
                                                           )
         self.comb += self.hdmi_in0_freq.clk.eq(self.hdmi_in0.clocking.cd_pix.clk)
         # don't add clock timings here, we add a root clock constraint that derives the rest automatically
 
         # hdmi over
-        self.comb += [
-            platform.request("hdmi_sda_over_up").eq(0),
-            platform.request("hdmi_sda_over_dn").eq(0),
-        ]
+        self.comb += platform.request("hdmi_sda_over_up").eq(0)
+        # platform.request("hdmi_sda_over_dn").eq(0),
+
 
         ########## hdmi in 1
         hdmi_in1_pads = platform.request("hdmi_in", 1)
@@ -1129,6 +1129,8 @@ class TesterSoC(BaseSoC):
                                                           fifo_depth=512,
                                                           iodelay_clk_freq=iodelay_clk_freq,
                                                           device = "xc7",
+                                                          hdmi=True,
+                                                          mode=mode,
                                                           )
         self.comb += self.hdmi_in1_freq.clk.eq(self.hdmi_in1.clocking.cd_pix.clk)
 
@@ -1173,6 +1175,8 @@ class TesterSoC(BaseSoC):
 
         self.hdmi_out1.submodules.i2c = i2c.I2C(hdmi_out1_pads)
 
+        self.comb += platform.request("hdmi_rx0_forceunplug", 0).eq(0)
+        self.comb += platform.request("hdmi_rx0_forceplug", 0).eq(1)
 
         self.comb += platform.request("fpga_led2", 0).eq(self.hdmi_in0.clocking.locked)  # RX0 green
         self.comb += platform.request("fpga_led3", 0).eq(1)  # RX0 red (stuck high most of the time)
@@ -1290,9 +1294,6 @@ class TesterSoC(BaseSoC):
         from litescope import LiteScopeAnalyzer
 
         analyzer_signals = [
-            self.hdmi_out0.core.timing.hactive,
-            self.hdmi_out0.core.timing.vactive,
-            self.hdmi_out0.core.timing.active,
             self.hdmi_out0.core.timing.source.de,
             self.hdmi_out0.core.timing.source.hsync,
             self.hdmi_out0.core.timing.source.vsync,

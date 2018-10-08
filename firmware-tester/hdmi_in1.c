@@ -261,7 +261,9 @@ int hdmi_in1_calibrate_delays(int freq)
 	/* preload slave phase detector idelay with 90° phase shift
 	  (78 ps taps on 7-series) */
 	printf( "idelay_freq: %d\n", idelay_freq );
-	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration);
+	// delay needs to be 90 degrees: master samples in middle of eye, slave samples the transition immediately after
+	// so divide total time by 4 to arrive at proper number of taps
+	phase_detector_delay = 10000000/(4*freq*iodelay_tap_duration) + 1; // add 1 because of integer rounding errors
 	printf("hdmi_in1 calibrate delays @ %dMHz, %d taps\n", freq/10, phase_detector_delay);
 	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
@@ -321,6 +323,13 @@ void hdmi_in1_nudge_eye(int chan, int amount) {
 
 int hdmi_in1_adjust_phase(void)
 {
+#if 0
+  if( hdmi_in1_debug ) {
+    printf( "hdmi_in1 data0 lateness_read: %d\n", (int) hdmi_in1_data0_cap_lateness_read() );
+    printf( "hdmi_in1 data1 lateness_read: %d\n", (int) hdmi_in1_data1_cap_lateness_read() );
+    printf( "hdmi_in1 data2 lateness_read: %d\n", (int) hdmi_in1_data2_cap_lateness_read() );
+  }
+#endif
 	switch(hdmi_in1_data0_cap_phase_read()) {
 		case DVISAMPLER_TOO_LATE:
 #ifdef CSR_HDMI_IN1_CLOCKING_PLL_RESET_ADDR
@@ -402,6 +411,12 @@ int hdmi_in1_adjust_phase(void)
 	return 1;
 }
 
+int static dummy(void) {
+  volatile int i = 0;
+  for( i = 0; i < 10; i++ )
+    ;
+}
+
 int hdmi_in1_init_phase(void)
 {
 	int o_d0, o_d1, o_d2;
@@ -412,6 +427,7 @@ int hdmi_in1_init_phase(void)
 		o_d1 = hdmi_in1_d1;
 		o_d2 = hdmi_in1_d2;
 		for(j=0;j<1000;j++) {
+		  dummy();
 			if(!hdmi_in1_adjust_phase())
 				return 0;
 		}

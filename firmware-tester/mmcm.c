@@ -213,6 +213,18 @@ void mmcm_config_120to240mhz_table(MMCM *mmcm) {
   }
 }
 
+void mmcm_config_60to120mhz_table(MMCM *mmcm) {
+  // hdmi0 MMCM
+  int hdmi0_mmcm_opt[46] = {0x28, 0xffff, 0x9, 0x80, 0x8, 0x11c8, 0xa, 0x1186, 0xb, 0x0, 0xc, 0x1042, 0xd, 0x80, 0xe, 0x41, 0xf, 0x40, 0x10, 0x41, 0x11, 0x40, 0x6, 0x41, 0x7, 0x40, 0x12, 0x41, 0x13, 0x40, 0x16, 0x1041, 0x14, 0x11c8, 0x15, 0x80, 0x18, 0x28a, 0x19, 0x7c01, 0x1a, 0xffe9, 0x4e, 0x9908, 0x4f, 0x8100};
+  
+  int i;
+  //  printf( "mmcm config %x\n", (unsigned int) mmcm );
+  for( i = 0; i < MTE; i += 2 ) {
+    //    printf( "%x: %x\n", hdmi0_mmcm_opt[i], hdmi0_mmcm_opt[i+1] );
+    mmcm->write(hdmi0_mmcm_opt[i], hdmi0_mmcm_opt[i+1]);
+  }
+}
+
 void mmcm_config_for_clock(MMCM *mmcm, int freq)
 {
 	/*
@@ -223,7 +235,7 @@ void mmcm_config_for_clock(MMCM *mmcm, int freq)
 	else if(freq < 6000)
 		mmcm_config_30to60mhz(mmcm);
 	else if(freq < 12000)
-		mmcm_config_60to120mhz(mmcm);
+		mmcm_config_60to120mhz_table(mmcm);
 	else if(freq < 24000)
 		mmcm_config_120to240mhz_table(mmcm);
 	else

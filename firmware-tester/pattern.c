@@ -11,6 +11,7 @@
 #include "stdio_wrap.h"
 #include "uptime.h"
 #include "version_data.h"
+#include "tester.h"
 
 unsigned int pattern_framebuffer_base(void) {
 	return FRAMEBUFFER_BASE_PATTERN;
@@ -168,7 +169,6 @@ void pattern_next(void) {
 	pattern_fill_framebuffer(processor_h_active, processor_v_active);
 }
 
-
 void pattern_fill_framebuffer(int h_active, int w_active)
 {
 #ifdef MAIN_RAM_BASE
@@ -177,6 +177,8 @@ void pattern_fill_framebuffer(int h_active, int w_active)
 	flush_l2_cache();
 	color = -1;
 	volatile unsigned int *framebuffer = (unsigned int *)(MAIN_RAM_BASE + pattern_framebuffer_base());
+
+#if 0
 	if(pattern == PATTERN_COLOR_BARS) {
 		/* color bar pattern */
 		for(i=0; i<h_active*w_active*2/4; i++) {
@@ -248,10 +250,30 @@ void pattern_fill_framebuffer(int h_active, int w_active)
 	pattern_draw_text_color(9, line, "videos", YCBCR422_WHITE, YCBCR422_BLUE);
 	pattern_draw_text_color(27, line, "digital", YCBCR422_WHITE, YCBCR422_CYAN);
 #endif
+#else
+	lfsr_init(VIDEO_LFSR_SEED);
+	// test pattern - put in a random-ish pattern
+	for(i=0; i<h_active*w_active*4/4; i++) {
+	  framebuffer[i] = lfsr_next();
+	}
+#endif
 
 	flush_l2_cache();
 /* FIXME: Framebuffer Should not even be compiled if no MAIN RAM */
 #endif
+}
+
+void pattern_fill_framebuffer_test(int h_active, int w_active, int seed)
+{
+  int i;
+  flush_l2_cache();
+  volatile unsigned int *framebuffer = (unsigned int *)(MAIN_RAM_BASE + pattern_framebuffer_base());
+  lfsr_init(seed);
+  // test pattern - put in a random-ish pattern
+  for(i=0; i<h_active*w_active*4/4; i++) {
+    framebuffer[i] = lfsr_next();
+  }
+  flush_l2_cache();
 }
 
 void pattern_service(void)
@@ -260,10 +282,12 @@ void pattern_service(void)
 	static int last_event;
 	static char buffer[16];
 
+#if 0	
 	if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY)) {
 		sprintf(buffer, "Uptime: %s", uptime_str());
 		pattern_draw_text(1, 1, buffer);
 	}
+#endif
 	flush_l2_cache();
 /* FIXME: Framebuffer Should not even be compiled if no MAIN RAM */
 #endif

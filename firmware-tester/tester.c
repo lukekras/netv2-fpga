@@ -213,9 +213,70 @@ int test_video(void) {
   return result;
 }
 
+#define MEM_TEST_START 0x1000000
+#define MEM_TEST_LENGTH 0x1000000
+int test_memory(void);
+/*
+  A very quick memory test. Objective is to find gross solder faults, so:
+    - stuck high/low or open address, data and control bits
+    - major faults in termination or VTT (minor problems might be missed by this test)
+
+  Program code runs out of low RAM, so that checks if the MSB can toggle.
+  The running of code + early memory cal sweep and checks generally catch 
+  more subtle errors as well. 
+
+  So, just do a log sweep of 256MiB with a random LFSR pattern and check 
+  readback, to make sure that no high address bits are bad.
+
+  Note: turns out a comprehensive RAM sweep (fill with random values + readback)
+  takes a couple minutes to run, which is too expensive for the quick test
+  on the factory floor. If we get to this being an issue to validate on every board,
+  consider pulling in proper memory tester code (eg memtester86) which truly works
+  all the corner cases.
+ */
+
+int test_memory(void) {
+  int i;
+  unsigned int *mem;
+  unsigned int res = 0;
+
+  printf( "RAM test: " );
+  
+  lfsr_init(0xbabe);
+  mem = (unsigned int *) (MAIN_RAM_BASE + MEM_TEST_START);
+  i = 0;
+  while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
+    mem[1 << i] = lfsr_next();
+    i++;
+  }
+
+  lfsr_init(0xbabe);
+  unsigned int val;
+  i = 0;
+  while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
+    val = lfsr_next();
+    if( mem[1 << i] != val ) {
+      if( res < ERR_PRINT_LIMIT )
+	printf("  ERROR: RAM error at %x, got %x expected %x\n", i * sizeof(int), mem[i], val );
+      res++;
+    }
+    i++;
+  }
+  
+  if( res == 0 ) {
+    printf( "PASS\n" );
+  } else {
+    printf( "FAIL\n" );
+  }
+  return(res);
+}
+
 int test_board(int test_number) {
   int result = 0;
-  
+
+  if( test_number == MEMORY_TEST || test_number == ALL_TESTS ) {
+    result += test_memory();
+  }
   if( test_number == VIDEO_TEST || test_number == ALL_TESTS ) {
     result += test_video();
   }

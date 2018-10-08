@@ -1,7 +1,8 @@
 #define ALL_TESTS -1
 
 enum tests {
-  VIDEO_TEST = 0,
+  MEMORY_TEST = 0,
+  VIDEO_TEST,
   MAX_TESTS
 };
 

@@ -36,7 +36,8 @@ OBJECTS=bist.o \
 	dump.o \
 	version_data.o \
 	hdmi_in1.o \
-	tester.o
+	tester.o \
+        sdcard.o
 
 #	boot-helper-$(CPU).o
 #	telnet.o \

@@ -13,6 +13,8 @@
 #include "hdmi_out0.h"
 #include "hdmi_out1.h"
 
+#include "sdcard.h"
+
 static int lfsr_state = 1;
 void lfsr_init(int seed) {
   lfsr_state = seed;
@@ -201,8 +203,38 @@ int test_video(void) {
     printf( "  ERROR: hdmi_in1 DDC bus problem\n" );
   }
 
-  // next up: check CEC, HPD
+  ///////////// CEC TEST
+  int val;
+  int mini_ret = 0;
+  int syndrome[2] = {0, 0};
+  for( i = 0; i < 100; i++ ) { // this loop toggles around 2.1MHz
+    val = i & 0x1;
+    looptest_cec_tx_write(val);
+    if( val ) {
+      if( looptest_cec_rx_read() != 0x3 ) {
+	syndrome[1] = looptest_cec_rx_read();
+	mini_ret++;
+      }
+    } else {
+      if( looptest_cec_rx_read() != 0x0 ) {
+	syndrome[0] = looptest_cec_rx_read();
+	mini_ret++;
+      }
+    }
+  }
+  if( mini_ret != 0 ) {
+    printf( "  ERROR: CEC connectivity problem, syndrome: high-%d low-%d, reps: %d\n", syndrome[1], syndrome[0], mini_ret );
+    result++;
+  }
+  looptest_cec_tx_write(0); // return to default value after test
   
+  /////////////// HPD override test 
+  looptest_rx_forceunplug_write(1);
+  if(hdmi_in0_edid_hpd_notif_read()) {
+    result++;
+    printf( "  ERROR: HPD forceunplug problem\n" );
+  }
+  looptest_rx_forceunplug_write(0);
 
   if( result == 0 ) {
     printf( "PASS\n" );
@@ -213,8 +245,8 @@ int test_video(void) {
   return result;
 }
 
-#define MEM_TEST_START 0x1000000
-#define MEM_TEST_LENGTH 0x1000000
+#define MEM_TEST_START  0x1000000
+#define MEM_TEST_LENGTH 0x0800000
 int test_memory(void);
 /*
   A very quick memory test. Objective is to find gross solder faults, so:
@@ -225,8 +257,8 @@ int test_memory(void);
   The running of code + early memory cal sweep and checks generally catch 
   more subtle errors as well. 
 
-  So, just do a log sweep of 256MiB with a random LFSR pattern and check 
-  readback, to make sure that no high address bits are bad.
+  So, just do a log sweep of 256MiB with a random LFSR pattern that spans one row width
+  multiplied by number of banks, and check readback, to stimulate all address bits.
 
   Note: turns out a comprehensive RAM sweep (fill with random values + readback)
   takes a couple minutes to run, which is too expensive for the quick test
@@ -235,30 +267,36 @@ int test_memory(void);
   all the corner cases.
  */
 
+#define MEM_BANKS 8
+#define MEM_ROWS  14
 int test_memory(void) {
-  int i;
+  int i, j;
   unsigned int *mem;
   unsigned int res = 0;
 
   printf( "RAM test: " );
   
-  lfsr_init(0xbabe);
+  unsigned int val;
   mem = (unsigned int *) (MAIN_RAM_BASE + MEM_TEST_START);
   i = 0;
+  lfsr_init(0xbabe);
   while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
-    mem[1 << i] = lfsr_next();
+    for( j = 0; j < (1 << MEM_ROWS) * MEM_BANKS; j++ ) {
+      mem[(1 << i) + j] = val;
+    }
     i++;
   }
+  flush_l2_cache();
 
-  lfsr_init(0xbabe);
-  unsigned int val;
   i = 0;
+  lfsr_init(0xbabe);
   while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
-    val = lfsr_next();
-    if( mem[1 << i] != val ) {
-      if( res < ERR_PRINT_LIMIT )
-	printf("  ERROR: RAM error at %x, got %x expected %x\n", i * sizeof(int), mem[i], val );
-      res++;
+    for( j = 0; j < (1 << MEM_ROWS) * MEM_BANKS; j++ ) {
+      if( mem[(1 << i) + j] != val ) {
+	if( res < ERR_PRINT_LIMIT )
+	  printf("  ERROR: RAM error at %x, got %x expected %x\n", &(mem[(1 << i) + j]), mem[(1 << i) + j], val );
+	res++;
+      }
     }
     i++;
   }
@@ -271,6 +309,38 @@ int test_memory(void) {
   return(res);
 }
 
+int test_leds(void) {
+  int res = 0;
+  int last_event;
+  int i;
+  
+  printf( "LED test, please observe all LEDs blinking: " );
+  elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/8);
+
+  for( i = 0; i < 21; i++ ) {
+    while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/4) )
+      ;
+    looptest_leds_write(1 << (i % 3));  
+  }
+  looptest_leds_write(0);  
+
+  // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
+  printf( "FINISHED\n" );
+  return res;
+}
+
+int test_sdcard(void) {
+  int res = 0;
+
+  // sd clock defaults to 1MHz in this implementation, don't call frequency init...
+  printf( "init sd card\n" );
+  sdcard_init();
+  printf( "one test loop\n" );
+  sdcard_test(1);
+  
+  return res;
+}
+
 int test_board(int test_number) {
   int result = 0;
 
@@ -279,6 +349,12 @@ int test_board(int test_number) {
   }
   if( test_number == VIDEO_TEST || test_number == ALL_TESTS ) {
     result += test_video();
+  }
+  if( test_number == LED_TEST || test_number == ALL_TESTS ) {
+    result += test_leds();
+  }
+  if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
+    result += test_sdcard();
   }
 
   return result;

@@ -3,6 +3,8 @@
 enum tests {
   MEMORY_TEST = 0,
   VIDEO_TEST,
+  LED_TEST,
+  SDCARD_TEST,
   MAX_TESTS
 };
 

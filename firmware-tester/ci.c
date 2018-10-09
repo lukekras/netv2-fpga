@@ -55,6 +55,7 @@
 #include "ci.h"
 
 #include "tester.h"
+#include "sdcard.h"
 
 #define HDMI_IN0_MNEMONIC "RX0"
 #define HDMI_IN0_DESCRIPTION "Rx input"
@@ -1263,7 +1264,30 @@ void ci_service(void)
 		} else if (strcmp(token, "hdmimode1") == 0 ) {
 		  hdmi_in1_decode_terc4_dvimode_write(0);
 		} else if (strcmp(token, "tester") == 0 ) {
-		  test_board(ALL_TESTS);
+		  token = get_token(&str);
+		  if(strcmp(token, "leds") == 0) {
+		    test_board(LED_TEST);
+		  } else if(strcmp(token, "video") == 0) {
+		    test_board(VIDEO_TEST);
+		  } else if(strcmp(token, "memory") == 0) {
+		    test_board(MEMORY_TEST);
+		  } else if(strcmp(token, "sdcard") == 0) {
+		    test_board(SDCARD_TEST);
+		  } else {
+		    if( token == '\0' )
+		      test_board(ALL_TESTS);
+		    else
+		      printf("Invalid test specified, no test run.\n");
+		  }
+		} else if(strcmp(token, "sdclk") == 0) {
+		  token = get_token(&str);
+		  sdclk_set_clk(atoi(token));
+		}
+		else if(strcmp(token, "sdinit") == 0)
+		  sdcard_init();
+		else if(strcmp(token, "sdtest") == 0) {
+		  token = get_token(&str);
+		  sdcard_test(atoi(token));
 		}
 #ifdef CSR_OPSIS_I2C_MASTER_W_ADDR
 		else if(strcmp(token, "opsis_eeprom") == 0) {

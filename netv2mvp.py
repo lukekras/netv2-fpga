@@ -159,7 +159,7 @@ _io = [
         Subsignal("data2_n", Pins("AB22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("scl", Pins("W17"), IOStandard("LVCMOS33"), Inverted()),
         Subsignal("sda", Pins("R17"), IOStandard("LVCMOS33")),
-        Subsignal("hpd_notif", Pins("V17"), IOStandard("LVCMOS33"), Inverted()),  # HDMI_HPD_LL_N (note active low)
+        Subsignal("hpd_notif", Pins("V17"), IOStandard("LVCMOS33"), Inverted()),  # OV0_HDMI_HPD_LL_N (note active low)
      ),
 
     # # using inverting jumper cable
@@ -245,6 +245,20 @@ _io = [
      Subsignal("hold", Pins("R21")),
      IOStandard("LVCMOS33")
      ),
+
+    ("loopback", 0,
+     Subsignal("tx1_cec", Pins("P17"), IOStandard("LVCMOS33")), # TX1 - TX1_CEC
+     Subsignal("cec_r", Pins("P20"), IOStandard("LVCMOS33")),  # RX0, TX0 - CEC_R (shorted together on PCB)
+     Subsignal("ov0_cec_r", Pins("P19"), IOStandard("LVCMOS33")), # OV0 - OV0_CEC_R
+     ),
+
+     # sdcard
+     ("sdcard", 0,
+        Subsignal("data", Pins("L15 L16 K14 M13"), Misc("PULLUP True")),
+        Subsignal("cmd", Pins("L13"), Misc("PULLUP True")),
+        Subsignal("clk", Pins("K18")),
+        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+      ),
 ]
 
 
@@ -495,8 +509,9 @@ class BaseSoC(SoCSDRAM):
         # common led
         self.sys_led = Signal()
         self.pcie_led = Signal()
-        self.comb += platform.request("fpga_led0", 0).eq(self.sys_led ^ self.pcie_led) #TX0 green
-        self.comb += platform.request("fpga_led1", 0).eq(0) #TX0 red
+        # driven by self-test module
+#        self.comb += platform.request("fpga_led0", 0).eq(self.sys_led ^ self.pcie_led) #TX0 green
+#        self.comb += platform.request("fpga_led1", 0).eq(0) #TX0 red
 
         self.fan_pwm = Signal()
         self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan to the "on" position
@@ -1066,6 +1081,39 @@ class VideoOverlaySoC(BaseSoC):
 from litevideo.output import VideoOut
 from gateware import i2c
 
+class LoopTest(Module, AutoCSR):
+    def __init__(self, platform, part):
+
+        # CEC is a special case, because it has a three-way wiring
+        self.cec_tx = CSRStorage(1)
+        self.cec_rx = CSRStatus(2)
+        cec_pads = platform.request("loopback", 0)
+        self.comb += cec_pads.cec_r.eq(self.cec_tx.storage)
+        self.comb += self.cec_rx.status.eq(Cat(cec_pads.tx1_cec, cec_pads.ov0_cec_r))
+
+        # wire up the RX0 force unplug/plug signals
+        self.rx_forceunplug = CSRStorage(1)
+        self.comb += platform.request("hdmi_rx0_forceunplug", 0).eq(self.rx_forceunplug.storage)
+        self.comb += platform.request("hdmi_rx0_forceplug", 0).eq(~self.rx_forceunplug.storage)
+
+        # wire up the FPGA LEDs -- toggle in pairs; both lit at same time is hard to tell
+        self.leds = CSRStorage(3)
+        self.comb += [
+            platform.request("fpga_led0", 0).eq(~self.leds.storage[0]),
+            platform.request("fpga_led1", 0).eq(self.leds.storage[0]),
+            platform.request("fpga_led2", 0).eq(~self.leds.storage[1]),
+            platform.request("fpga_led3", 0).eq(self.leds.storage[1]),
+        ]
+        # set an internal LED color based on the FPGA type installed -- for quick factory determination of PCB type (FPGA P/N covered by heatsink)
+        if part == "35":  # green if 35T
+            self.comb += platform.request("fpga_led4", 0).eq(self.leds.storage[2])  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(~self.leds.storage[2])  # OV0 green
+        else:  # red if 100T
+            self.comb += platform.request("fpga_led4", 0).eq(~self.leds.storage[2])  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(self.leds.storage[2])  # OV0 green
+
+
+
 class TesterSoC(BaseSoC):
     csr_peripherals = [
         "hdmi_out0",
@@ -1079,6 +1127,13 @@ class TesterSoC(BaseSoC):
         "analyzer",
         "phy",
         "core",
+        "looptest",
+        "sdclk",
+        "sdphy",
+        "sdcore",
+        "sdtimer",
+        "bist_generator",
+        "bist_checker",
     ]
     csr_map_update(BaseSoC.csr_map, csr_peripherals)
 
@@ -1092,6 +1147,8 @@ class TesterSoC(BaseSoC):
         BaseSoC.__init__(self, platform, *args, **kwargs)
 
         # # #
+
+        self.submodules.looptest = LoopTest(platform, part)
 
         pix_freq = 148.50e6
         mode = "rgb"
@@ -1175,19 +1232,39 @@ class TesterSoC(BaseSoC):
 
         self.hdmi_out1.submodules.i2c = i2c.I2C(hdmi_out1_pads)
 
-        self.comb += platform.request("hdmi_rx0_forceunplug", 0).eq(0)
-        self.comb += platform.request("hdmi_rx0_forceplug", 0).eq(1)
+        from litesdcard.phy import SDPHY
+        from litesdcard.clocker import SDClockerS7
+        from litesdcard.core import SDCore
+        from litesdcard.bist import BISTBlockGenerator, BISTBlockChecker
+        from litex.soc.cores.timer import Timer
 
-        self.comb += platform.request("fpga_led2", 0).eq(self.hdmi_in0.clocking.locked)  # RX0 green
-        self.comb += platform.request("fpga_led3", 0).eq(1)  # RX0 red (stuck high most of the time)
+        # sd
+        sdcard_pads = platform.request('sdcard')
+        self.submodules.sdclk = SDClockerS7()
+        self.submodules.sdphy = SDPHY(sdcard_pads, platform.device)
+        self.submodules.sdcore = SDCore(self.sdphy)
+        self.submodules.sdtimer = Timer()
 
-        # set an internal LED color based on the FPGA type installed -- for quick factory determination of PCB type (FPGA P/N covered by heatsink)
-        if part == "35":  # green if 35T
-            self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
-            self.comb += platform.request("fpga_led5", 0).eq(1)  # OV0 green
-        else:  # red if 100T
-            self.comb += platform.request("fpga_led4", 0).eq(1)  # OV0 red
-            self.comb += platform.request("fpga_led5", 0).eq(0)  # OV0 green
+        self.submodules.bist_generator = BISTBlockGenerator(random=True)
+        self.submodules.bist_checker = BISTBlockChecker(random=True)
+
+        self.comb += [
+            self.sdcore.source.connect(self.bist_checker.sink),
+            self.bist_generator.source.connect(self.sdcore.sink)
+        ]
+
+        sd_freq = int(100e6)
+        self.platform.add_period_constraint(self.sdclk.cd_sd.clk, 1e9 / sd_freq)
+        self.platform.add_period_constraint(self.sdclk.cd_sd_fb.clk, 1e9 / sd_freq)
+
+        self.crg.cd_sys.clk.attr.add("keep")
+        self.sdclk.cd_sd.clk.attr.add("keep")
+        self.sdclk.cd_sd_fb.clk.attr.add("keep")
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.sdclk.cd_sd.clk,
+            self.sdclk.cd_sd_fb.clk)
+
 
         # analyzer ethernet
         from liteeth.phy.rmii import LiteEthPHYRMII

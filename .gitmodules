@@ -26,3 +26,6 @@
 [submodule "deps/litesdcard"]
 	path = deps/litesdcard
 	url = https://github.com/enjoy-digital/litesdcard.git
+[submodule "deps/liteiclink"]
+	path = deps/liteiclink
+	url = https://github.com/enjoy-digital/liteiclink.git

@@ -252,12 +252,38 @@ _io = [
      Subsignal("ov0_cec_r", Pins("P19"), IOStandard("LVCMOS33")), # OV0 - OV0_CEC_R
      ),
 
-     # sdcard
+    ("loopback", 1,
+     Subsignal("fusb_p", Pins("C14"), IOStandard("LVCMOS33")),
+     Subsignal("fusb_n", Pins("C15"), IOStandard("LVCMOS33")),
+     ),
+
+    ("loopback", 2,
+#     Subsignal("hax", Pins("B15 B16 B13 A15 A16 A13 A14 B17 A18 C17"), IOStandard("LVCMOS33")),
+     Subsignal("hax0", Pins("B15"), IOStandard("LVCMOS33")),  # can't bus together because some are in, some are out
+     Subsignal("hax1", Pins("B16"), IOStandard("LVCMOS33")),
+     Subsignal("hax2", Pins("B13"), IOStandard("LVCMOS33")),
+     Subsignal("hax3", Pins("A15"), IOStandard("LVCMOS33")),
+     Subsignal("hax4", Pins("A16"), IOStandard("LVCMOS33")),
+     Subsignal("hax5", Pins("A13"), IOStandard("LVCMOS33")),
+     Subsignal("hax6", Pins("A14"), IOStandard("LVCMOS33")),
+     Subsignal("hax7", Pins("B17"), IOStandard("LVCMOS33")),
+     Subsignal("hax8", Pins("A18"), IOStandard("LVCMOS33")),
+     Subsignal("hax9", Pins("C17"), IOStandard("LVCMOS33")),
+     Subsignal("sm_p", Pins("E19"), IOStandard("LVCMOS33")),
+     Subsignal("sm_n", Pins("D19"), IOStandard("LVCMOS33")),
+     Subsignal("perst", Pins("E18"), IOStandard("LVCMOS33")),
+     Subsignal("wake", Pins("D20"), IOStandard("LVCMOS33")),
+#     Subsignal("mcu_int", Pins("D15 G13"), IOStandard("LVCMOS33")),
+     Subsignal("mcu_int0", Pins("D15"), IOStandard("LVCMOS33")),
+     Subsignal("mcu_int1", Pins("G13"), IOStandard("LVCMOS33")),
+     ),
+
+    # sdcard
      ("sdcard", 0,
         Subsignal("data", Pins("L15 L16 K14 M13"), Misc("PULLUP True")),
         Subsignal("cmd", Pins("L13"), Misc("PULLUP True")),
         Subsignal("clk", Pins("K18")),
-        IOStandard("LVCMOS33"), Misc("SLEW=FAST")
+        IOStandard("LVCMOS33"), Misc("SLEW=SLOW")
       ),
 ]
 
@@ -513,8 +539,8 @@ class BaseSoC(SoCSDRAM):
 #        self.comb += platform.request("fpga_led0", 0).eq(self.sys_led ^ self.pcie_led) #TX0 green
 #        self.comb += platform.request("fpga_led1", 0).eq(0) #TX0 red
 
-        self.fan_pwm = Signal()
-        self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan to the "on" position
+#        self.fan_pwm = Signal()
+#        self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan to the "on" position
 
 
         # sys led
@@ -1112,7 +1138,44 @@ class LoopTest(Module, AutoCSR):
             self.comb += platform.request("fpga_led4", 0).eq(~self.leds.storage[2])  # OV0 red
             self.comb += platform.request("fpga_led5", 0).eq(self.leds.storage[2])  # OV0 green
 
+        self.fusb_tx = CSRStorage(1)
+        self.fusb_rx = CSRStatus(1)
+        fusb_pads = platform.request("loopback", 1)
+        self.comb += fusb_pads.fusb_p.eq(self.fusb_tx.storage)
+        self.comb += self.fusb_rx.status.eq(fusb_pads.fusb_n)
 
+        self.fan_pwm = CSRStorage(1, reset=1)
+        self.comb += platform.request("fan_pwm", 0).eq(self.fan_pwm.storage)
+
+        pcie_pads = platform.request("loopback", 2)
+        self.hax_tx = CSRStorage(10)
+        self.hax_rx = CSRStatus(10)
+        self.sm_tx = CSRStorage(1)
+        self.sm_rx = CSRStatus(1)
+        self.pcie_rx = CSRStatus(2)
+        self.mcu_tx = CSRStorage(1)
+        self.mcu_rx = CSRStatus(1)
+        self.comb += [
+            # SM bus loopback
+            pcie_pads.sm_p.eq(self.sm_tx.storage),
+            self.sm_rx.status.eq(pcie_pads.sm_n),
+
+            # mcu_int loopback (tied on header)
+            pcie_pads.mcu_int0.eq(self.mcu_tx.storage),
+            self.mcu_rx.status.eq(pcie_pads.mcu_int1),
+
+            # perst/wake loopback: 5-> PERST, 6->WAKE
+            pcie_pads.hax6.eq(self.hax_tx.storage[6]),
+            pcie_pads.hax5.eq(self.hax_tx.storage[5]),
+            self.pcie_rx.status.eq(Cat(pcie_pads.perst, pcie_pads.wake)),
+
+            # hax loopbacks
+            pcie_pads.hax8.eq(self.hax_tx.storage[8]),
+            pcie_pads.hax1.eq(self.hax_tx.storage[1]),
+            pcie_pads.hax9.eq(self.hax_tx.storage[9]),
+            pcie_pads.hax0.eq(self.hax_tx.storage[0]),
+            self.hax_rx.status.eq(Cat(0, 0, pcie_pads.hax2, pcie_pads.hax3, pcie_pads.hax4, 0, 0, pcie_pads.hax7, 0, 0)), # cat from LSB->MSB
+        ]
 
 class TesterSoC(BaseSoC):
     csr_peripherals = [

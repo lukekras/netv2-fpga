@@ -1273,11 +1273,14 @@ void ci_service(void)
 		    test_board(MEMORY_TEST);
 		  } else if(strcmp(token, "sdcard") == 0) {
 		    test_board(SDCARD_TEST);
+		  } else if(strcmp(token, "usb") == 0) {
+		    test_board(USB_TEST);
+		  } else if(strcmp(token, "fan") == 0) {
+		    test_board(FAN_TEST);
+		  } else if(strcmp(token, "loopback") == 0) {
+		    test_board(LOOPBACK_TEST);
 		  } else {
-		    if( token == '\0' )
-		      test_board(ALL_TESTS);
-		    else
-		      printf("Invalid test specified, no test run.\n");
+		    test_board(ALL_TESTS);
 		  }
 		} else if(strcmp(token, "sdclk") == 0) {
 		  token = get_token(&str);

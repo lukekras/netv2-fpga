@@ -309,6 +309,9 @@ int test_memory(void) {
   return(res);
 }
 
+/*
+  Visual LED test -- requires operator intervention to witness if the LEDs flash
+ */
 int test_leds(void) {
   int res = 0;
   int last_event;
@@ -329,6 +332,34 @@ int test_leds(void) {
   return res;
 }
 
+/*
+  Fan test -- requires operator intervention to witness if the fan stops rotating
+ */
+int test_fan(void) {
+  int res = 0;
+  int last_event;
+  int i;
+  
+  printf( "Fan test, please observe if the fan stops spinning: " );
+  elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY);
+
+  for( i = 0; i < 8; i++ ) {
+    looptest_fan_pwm_write(i & 1);
+    if( i & 1 ) {
+      printf( "spinning " );
+    } else {
+      printf( "stopped " );
+    }
+    while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
+      ;
+  }
+  looptest_fan_pwm_write(1);  
+
+  // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
+  printf( "FINISHED\n" );
+  return res;
+}
+
 int test_sdcard(void) {
   int res = 0;
 
@@ -338,6 +369,73 @@ int test_sdcard(void) {
   printf( "one test loop\n" );
   sdcard_test(1);
   
+  return res;
+}
+
+// common kernel function for simple loopbacks
+int loopback_kernel( void (*tx_func)(unsigned int), int txbit, unsigned int (*rx_func)(void), int rxbit, char *name ) {
+  int res = 0;
+  int i;
+  unsigned int val;
+  int mini_ret = 0;
+  int syndrome[2] = {0, 0};
+  for( i = 0; i < 100; i++ ) {
+    val = i & 0x1;
+    tx_func((unsigned int) (val << txbit));
+    if( (rx_func() & (1 << rxbit)) != (val << rxbit) ) {
+      syndrome[val] = rx_func();
+      mini_ret++;
+    }
+  }
+  if( mini_ret != 0 ) {
+    printf( "  ERROR: %s connectivity problem, syndrome: high-0x%x low-0x%x, reps: %d\n", name, syndrome[1], syndrome[0], mini_ret );
+    res++;
+  }
+  tx_func(0);
+  return res;
+}
+
+/*
+  Simple loopback test -- assumes loopback cable connected (short USB D+ to D-)
+ */
+int test_usb(void) {
+  int res = 0;
+
+  printf( "USB test: " );
+  res += loopback_kernel( looptest_fusb_tx_write, 0, looptest_fusb_rx_read, 0, "USB" );
+  
+  if( res == 0 ) {
+    printf( "PASS\n" );
+  } else {
+    printf( "FAIL\n" );
+  }
+  return res;
+}
+
+/*
+  Simple loopback test of low-frequency signals -- requires plug-in to PCIe loopback slot, and MCUINT loopback
+ */
+int test_loopback(void) {
+  int res = 0;
+
+  printf( "Loopback tests: " );
+
+  res += loopback_kernel( looptest_mcu_tx_write, 0, looptest_mcu_rx_read, 0, "MCUINT" );
+  res += loopback_kernel( looptest_sm_tx_write, 0, looptest_sm_rx_read, 0, "SM" );
+
+  // this requires a particular wiring on the PCIe test connector, note order
+  res += loopback_kernel( looptest_hax_tx_write, 8, looptest_hax_rx_read, 7, "HAX8->7" );
+  res += loopback_kernel( looptest_hax_tx_write, 1, looptest_hax_rx_read, 4, "HAX1->4" );
+  res += loopback_kernel( looptest_hax_tx_write, 9, looptest_hax_rx_read, 3, "HAX9->3" );
+  res += loopback_kernel( looptest_hax_tx_write, 0, looptest_hax_rx_read, 2, "HAX0->2" );
+  res += loopback_kernel( looptest_hax_tx_write, 6, looptest_pcie_rx_read, 1, "HAX6->WAKE" );
+  res += loopback_kernel( looptest_hax_tx_write, 5, looptest_pcie_rx_read, 0, "HAX5->PERST" );
+  
+  if( res == 0 ) {
+    printf( "PASS\n" );
+  } else {
+    printf( "FAIL\n" );
+  }
   return res;
 }
 
@@ -355,6 +453,15 @@ int test_board(int test_number) {
   }
   if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
     result += test_sdcard();
+  }
+  if( test_number == USB_TEST || test_number == ALL_TESTS ) {
+    result += test_usb();
+  }
+  if( test_number == FAN_TEST || test_number == ALL_TESTS ) {
+    result += test_fan();
+  }
+  if( test_number == LOOPBACK_TEST || test_number == ALL_TESTS ) {
+    result += test_loopback();
   }
 
   return result;

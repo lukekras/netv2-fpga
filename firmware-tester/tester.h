@@ -5,6 +5,9 @@ enum tests {
   VIDEO_TEST,
   LED_TEST,
   SDCARD_TEST,
+  USB_TEST,
+  FAN_TEST,
+  LOOPBACK_TEST,
   MAX_TESTS
 };
 

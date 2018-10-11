@@ -12,7 +12,7 @@
 [submodule "deps/litevideo"]
 	path = deps/litevideo
 	url = https://github.com/AlphamaxMedia/litevideo.git
-	branch = master
+	branch = tester-master
 [submodule "deps/liteeth"]
 	path = deps/liteeth
 	url = https://github.com/enjoy-digital/liteeth.git

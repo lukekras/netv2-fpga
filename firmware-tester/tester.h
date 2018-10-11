@@ -17,3 +17,12 @@ enum tests {
 int test_board(int test_number);
 unsigned int lfsr_next(void);
 void lfsr_init(int seed);
+
+int test_video(void);
+int test_memory(void);
+int test_fan(void);
+int test_sdcard(void);
+int test_usb(void);
+int test_loopback(void);
+int test_gtp(void);
+int test_leds(void);

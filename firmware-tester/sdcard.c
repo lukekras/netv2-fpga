@@ -9,7 +9,7 @@
 
 #include "sdcard.h"
 
-#define SDCARD_DEBUG
+//#define SDCARD_DEBUG
 
 /* clocking */
 
@@ -161,7 +161,7 @@ int sdcard_wait_cmd_done(void) {
 	while (1) {
 		cmdevt = sdcore_cmdevt_read();
 #ifdef SDCARD_DEBUG
-		printf("cmdevt: %08x\n", cmdevt);
+		//		printf("cmdevt: %08x\n", cmdevt);
 #endif
 		if (cmdevt & 0x1) {
 			if (cmdevt & 0x4) {
@@ -201,8 +201,8 @@ int sdcard_wait_data_done(void) {
 int sdcard_wait_response(void) {
         int i, j;
 	int status;
-	//	volatile unsigned int *buffer = (unsigned int *)CSR_SDCORE_RESPONSE_ADDR;
-	//	unsigned int buffer[4];
+	
+#if CSR_DATA_WIDTH == 8
 	unsigned int r;
 
 	status = sdcard_wait_cmd_done();
@@ -213,24 +213,42 @@ int sdcard_wait_response(void) {
 	  r = 0;
 	  for( j = 0; j < 4; j++ ) {
 	    offset = ((CSR_SDCORE_RESPONSE_SIZE - 1) * 4) - j * 4 - i * 16;
-	    printf( "%d ", offset );
 	    if( offset >= 0 ) {
 	      r |= ((csr_readl(CSR_SDCORE_RESPONSE_ADDR + offset) & 0xFF) << (j * 8));
 	    }
 	  }
-	  
 #ifdef SDCARD_DEBUG
-		printf("%08x ", r);
+	  printf("%08x ", r);
 #endif
-		sdcard_response[i] = r;
+	  sdcard_response[3 - i] = r;  // NOTE: this is "backwards" but sticking with this because it's compatible with CSR32
 	}
+#ifdef SDCARD_DEBUG
 	printf( "\n" );
+#endif
+
+	
+#else
+	volatile unsigned int *buffer = (unsigned int *)CSR_SDCORE_RESPONSE_ADDR;
+
+	status = sdcard_wait_cmd_done();
+
+	for(i=0; i<4; i++) {
+#ifdef SDCARD_DEBUG
+		printf("%08x\n", buffer[i]);
+#endif
+		sdcard_response[i] = buffer[i];
+	}
+#endif
 
 	return status;
 }
 
 /* commands */
+#if CSR_DATA_WIDTH == 8
 #define  CSR8_CMD_FIX  	sdcore_issue_cmd_write(1)
+#else
+#define  CSR8_CMD_FIX
+#endif
 
 void sdcard_go_idle(void) {
 #ifdef SDCARD_DEBUG
@@ -582,13 +600,23 @@ int sdcard_init(void) {
 	for(;;) {
 		sdcard_app_cmd(0);
 		sdcard_app_send_op_cond(1, 0);
+#ifdef SDCARD_DEBUG
+		int j;
+		printf( "resp 0->3: " );
+		for( j = 0; j < 4; j++ ) {
+		  printf( "0x%08x ", sdcard_response[j] );
+		}
+		printf( "\n" );
+#endif
 		if (sdcard_response[3] & 0x80000000) {
 			break;
 		}
 		busy_wait(1);
-		if ( i > 10 )
-		  return;
+#ifdef SDCARD_DEBUG
+		if ( i > 3 )
+		  return 1;
 		i++;
+#endif
 	}
 
 	/* send identification */
@@ -643,7 +671,7 @@ int sdcard_test(unsigned int loops) {
 	unsigned int blocks;
 	unsigned int start;
 	unsigned int end;
-	unsigned int errors;
+	unsigned int errors = 0;
 	unsigned long write_speed, read_speed;
 
 	sdcore_cmdtimeout_write(1<<19);
@@ -691,5 +719,5 @@ int sdcard_test(unsigned int loops) {
 		);
 	}
 
-	return 0;
+	return errors;
 }

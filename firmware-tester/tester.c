@@ -2,6 +2,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <string.h>
+#include <system.h>
 
 #include <generated/csr.h>
 #include <time.h>
@@ -79,7 +80,6 @@ int transform_source(int source) {
 
 extern unsigned char netv_edid_60hz[256];
 
-int test_video(void);
 /* 
    Hardware configuration:
      TX1 connected to RX0
@@ -247,7 +247,6 @@ int test_video(void) {
 
 #define MEM_TEST_START  0x1000000
 #define MEM_TEST_LENGTH 0x0800000
-int test_memory(void);
 /*
   A very quick memory test. Objective is to find gross solder faults, so:
     - stuck high/low or open address, data and control bits
@@ -282,6 +281,7 @@ int test_memory(void) {
   lfsr_init(0xbabe);
   while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
     for( j = 0; j < (1 << MEM_ROWS) * MEM_BANKS; j++ ) {
+      val = lfsr_next();
       mem[(1 << i) + j] = val;
     }
     i++;
@@ -292,6 +292,7 @@ int test_memory(void) {
   lfsr_init(0xbabe);
   while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
     for( j = 0; j < (1 << MEM_ROWS) * MEM_BANKS; j++ ) {
+      val = lfsr_next();
       if( mem[(1 << i) + j] != val ) {
 	if( res < ERR_PRINT_LIMIT )
 	  printf("  ERROR: RAM error at %x, got %x expected %x\n", &(mem[(1 << i) + j]), mem[(1 << i) + j], val );
@@ -362,18 +363,22 @@ int test_fan(void) {
 
 int test_sdcard(void) {
   int res = 0;
-
-  // sd clock defaults to 1MHz in this implementation, don't call frequency init...
-  printf( "init sd card\n" );
-  sdcard_init();
-  //  printf( "one test loop\n" );
-  //  sdcard_test(1);
   
+  printf( "SD test: " );
+  // sd clock defaults to 5MHz in this implementation, don't call frequency init...
+  sdcard_init();
+  res += sdcard_test(2);
+  
+  if( res == 0 ) {
+    printf( "PASS\n" );
+  } else {
+    printf( "FAIL\n" );
+  }
   return res;
 }
 
 // common kernel function for simple loopbacks
-int loopback_kernel( void (*tx_func)(unsigned int), int txbit, unsigned int (*rx_func)(void), int rxbit, char *name ) {
+int loopback_kernel( void (*tx_func)(unsigned char), int txbit, unsigned char (*rx_func)(void), int rxbit, char *name ) {
   int res = 0;
   int i;
   unsigned int val;
@@ -381,7 +386,30 @@ int loopback_kernel( void (*tx_func)(unsigned int), int txbit, unsigned int (*rx
   int syndrome[2] = {0, 0};
   for( i = 0; i < 100; i++ ) {
     val = i & 0x1;
-    tx_func((unsigned int) (val << txbit));
+    tx_func((unsigned char) (val << txbit));
+    if( (rx_func() & (1 << rxbit)) != (val << rxbit) ) {
+      syndrome[val] = rx_func();
+      mini_ret++;
+    }
+  }
+  if( mini_ret != 0 ) {
+    printf( "  ERROR: %s connectivity problem, syndrome: high-0x%x low-0x%x, reps: %d\n", name, syndrome[1], syndrome[0], mini_ret );
+    res++;
+  }
+  tx_func(0);
+  return res;
+}
+
+// second copy of above to handle the "unsigned short" case (reduce compiler warnings)
+int loopback_kernel_u16( void (*tx_func)(unsigned short), int txbit, unsigned short (*rx_func)(void), int rxbit, char *name ) {
+  int res = 0;
+  int i;
+  unsigned int val;
+  int mini_ret = 0;
+  int syndrome[2] = {0, 0};
+  for( i = 0; i < 100; i++ ) {
+    val = i & 0x1;
+    tx_func((unsigned short) (val << txbit));
     if( (rx_func() & (1 << rxbit)) != (val << rxbit) ) {
       syndrome[val] = rx_func();
       mini_ret++;
@@ -424,12 +452,12 @@ int test_loopback(void) {
   res += loopback_kernel( looptest_sm_tx_write, 0, looptest_sm_rx_read, 0, "SM" );
 
   // this requires a particular wiring on the PCIe test connector, note order
-  res += loopback_kernel( looptest_hax_tx_write, 8, looptest_hax_rx_read, 7, "HAX8->7" );
-  res += loopback_kernel( looptest_hax_tx_write, 1, looptest_hax_rx_read, 4, "HAX1->4" );
-  res += loopback_kernel( looptest_hax_tx_write, 9, looptest_hax_rx_read, 3, "HAX9->3" );
-  res += loopback_kernel( looptest_hax_tx_write, 0, looptest_hax_rx_read, 2, "HAX0->2" );
-  res += loopback_kernel( looptest_hax_tx_write, 6, looptest_pcie_rx_read, 1, "HAX6->WAKE" );
-  res += loopback_kernel( looptest_hax_tx_write, 5, looptest_pcie_rx_read, 0, "HAX5->PERST" );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 8, looptest_hax_rx_read, 7, "HAX8->7" );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 1, looptest_hax_rx_read, 4, "HAX1->4" );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 9, looptest_hax_rx_read, 3, "HAX9->3" );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 0, looptest_hax_rx_read, 2, "HAX0->2" );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 6, looptest_pcie_rx_read, 1, "HAX6->WAKE" );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 5, looptest_pcie_rx_read, 0, "HAX5->PERST" );
   
   if( res == 0 ) {
     printf( "PASS\n" );

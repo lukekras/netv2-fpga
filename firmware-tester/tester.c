@@ -366,8 +366,8 @@ int test_sdcard(void) {
   // sd clock defaults to 1MHz in this implementation, don't call frequency init...
   printf( "init sd card\n" );
   sdcard_init();
-  printf( "one test loop\n" );
-  sdcard_test(1);
+  //  printf( "one test loop\n" );
+  //  sdcard_test(1);
   
   return res;
 }
@@ -439,6 +439,32 @@ int test_loopback(void) {
   return res;
 }
 
+/*
+  Loopback test of high-speed GTP signals -- requires each GTP link to wire Tx to Rx
+ */
+int test_gtp(void) {
+  int res = 0;
+
+  printf( "GTP tests: " );
+
+  // config for 2^7 PRBS test
+  gtp0_tx_prbs_config_write(1);
+  gtp0_rx_prbs_config_write(1);
+
+  int i;
+  for( i = 0; i < 10; i++ ) {
+    //    printf( "gtp0_rx_prbs_errors: %d\n", gtp0_rx_prbs_errors_read() );
+    printf( "rx errs: %d\n", gtp0_rx_gtp_prbs_err_read() );
+  }
+  
+  if( res == 0 ) {
+    printf( "PASS\n" );
+  } else {
+    printf( "FAIL\n" );
+  }
+  return res;
+}
+
 int test_board(int test_number) {
   int result = 0;
 
@@ -451,9 +477,6 @@ int test_board(int test_number) {
   if( test_number == LED_TEST || test_number == ALL_TESTS ) {
     result += test_leds();
   }
-  if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
-    result += test_sdcard();
-  }
   if( test_number == USB_TEST || test_number == ALL_TESTS ) {
     result += test_usb();
   }
@@ -462,6 +485,12 @@ int test_board(int test_number) {
   }
   if( test_number == LOOPBACK_TEST || test_number == ALL_TESTS ) {
     result += test_loopback();
+  }
+  if( test_number == GTP_TEST || test_number == ALL_TESTS ) {
+    result += test_gtp();
+  }
+  if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
+    result += test_sdcard();
   }
 
   return result;

@@ -8,6 +8,7 @@ enum tests {
   USB_TEST,
   FAN_TEST,
   LOOPBACK_TEST,
+  GTP_TEST,
   MAX_TESTS
 };
 

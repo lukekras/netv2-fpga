@@ -1279,6 +1279,8 @@ void ci_service(void)
 		    test_board(FAN_TEST);
 		  } else if(strcmp(token, "loopback") == 0) {
 		    test_board(LOOPBACK_TEST);
+		  } else if(strcmp(token, "gtp") == 0) {
+		    test_board(GTP_TEST);
 		  } else {
 		    test_board(ALL_TESTS);
 		  }

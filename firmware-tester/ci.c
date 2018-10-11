@@ -1281,6 +1281,8 @@ void ci_service(void)
 		    test_board(LOOPBACK_TEST);
 		  } else if(strcmp(token, "gtp") == 0) {
 		    test_board(GTP_TEST);
+		  } else if(strcmp(token, "xadc") == 0) {
+		    test_board(XADC_TEST);
 		  } else {
 		    test_board(ALL_TESTS);
 		  }

@@ -239,14 +239,14 @@ int test_video(void) {
   if( result == 0 ) {
     printf( "PASS\n" );
   } else {
-    printf( "FAIL\n" );
+    printf( "FAIL %d errors\n", result );
   }
   
   return result;
 }
 
-#define MEM_TEST_START  0x1000000
-#define MEM_TEST_LENGTH 0x0800000
+#define MEM_TEST_START  0x08000000
+#define MEM_TEST_LENGTH 0x04000000
 /*
   A very quick memory test. Objective is to find gross solder faults, so:
     - stuck high/low or open address, data and control bits
@@ -267,31 +267,36 @@ int test_video(void) {
  */
 
 #define MEM_BANKS 8
+#define MEM_BANKS_LOG  3
 #define MEM_ROWS  14
 int test_memory(void) {
-  int i, j;
+  unsigned int i, j;
   unsigned int *mem;
   unsigned int res = 0;
 
   printf( "RAM test: " );
-  
+
+  unsigned int row_end = ((1 << MEM_ROWS) * MEM_BANKS) / sizeof(int);
   unsigned int val;
   mem = (unsigned int *) (MAIN_RAM_BASE + MEM_TEST_START);
   i = 0;
   lfsr_init(0xbabe);
   while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
-    for( j = 0; j < (1 << MEM_ROWS) * MEM_BANKS; j++ ) {
+    for( j = 0; j < row_end; j++ ) {
       val = lfsr_next();
       mem[(1 << i) + j] = val;
     }
-    i++;
+    if( i == 0 )
+      i += (MEM_ROWS + MEM_BANKS_LOG);
+    else
+      i++;
   }
   flush_l2_cache();
 
   i = 0;
   lfsr_init(0xbabe);
   while( (1 << i) < (MEM_TEST_LENGTH / sizeof(int) ) ) {
-    for( j = 0; j < (1 << MEM_ROWS) * MEM_BANKS; j++ ) {
+    for( j = 0; j < row_end; j++ ) {
       val = lfsr_next();
       if( mem[(1 << i) + j] != val ) {
 	if( res < ERR_PRINT_LIMIT )
@@ -299,13 +304,16 @@ int test_memory(void) {
 	res++;
       }
     }
-    i++;
+    if( i == 0 )
+      i += (MEM_ROWS + MEM_BANKS_LOG);
+    else
+      i++;
   }
   
   if( res == 0 ) {
     printf( "PASS\n" );
   } else {
-    printf( "FAIL\n" );
+    printf( "FAIL %d errors\n", res );
   }
   return(res);
 }
@@ -372,7 +380,7 @@ int test_sdcard(void) {
   if( res == 0 ) {
     printf( "PASS\n" );
   } else {
-    printf( "FAIL\n" );
+    printf( "FAIL %d errors\n", res );
   }
   return res;
 }
@@ -435,7 +443,7 @@ int test_usb(void) {
   if( res == 0 ) {
     printf( "PASS\n" );
   } else {
-    printf( "FAIL\n" );
+    printf( "FAIL %d errors\n", res );
   }
   return res;
 }
@@ -462,7 +470,7 @@ int test_loopback(void) {
   if( res == 0 ) {
     printf( "PASS\n" );
   } else {
-    printf( "FAIL\n" );
+    printf( "FAIL %d errors\n", res );
   }
   return res;
 }
@@ -475,51 +483,117 @@ int test_gtp(void) {
 
   printf( "GTP tests: " );
 
-  // config for 2^7 PRBS test
-  gtp0_tx_prbs_config_write(1);
-  gtp0_rx_prbs_config_write(1);
-
   int i;
-  for( i = 0; i < 10; i++ ) {
-    //    printf( "gtp0_rx_prbs_errors: %d\n", gtp0_rx_prbs_errors_read() );
-    printf( "rx errs: %d\n", gtp0_rx_gtp_prbs_err_read() );
+  // accumulate "real time" errors over about 0.5 seconds
+  for( i = 0; i < 10000000; i++ ) {
+    res += gtp0_rx_gtp_prbs_err_read();
   }
+  if( res != 0 )
+    printf( "FAIL %d errors on GTP0\n" );
+
+  for( i = 0; i < 10000000; i++ ) {
+    res += gtp1_rx_gtp_prbs_err_read();
+  }
+  if( res != 0 )
+    printf( "FAIL %d errors on GTP1\n" );
+  
+  for( i = 0; i < 10000000; i++ ) {
+    res += gtp2_rx_gtp_prbs_err_read();
+  }
+  if( res != 0 )
+    printf( "FAIL %d errors on GTP2\n" );
+
+  for( i = 0; i < 10000000; i++ ) {
+    res += gtp3_rx_gtp_prbs_err_read();
+  }
+  if( res != 0 )
+    printf( "FAIL %d errors on GTP3\n" );
   
   if( res == 0 ) {
     printf( "PASS\n" );
-  } else {
-    printf( "FAIL\n" );
   }
   return res;
 }
 
+/*
+  Check XADC signals -- voltages & temp in range
+ */
+int test_xadc(void) {
+  int res = 0;
+  
+  double temp;
+  double vccint, vccaux, vccbram;
+  
+  printf( "XADC tests: " );
+
+  temp = ((double)xadc_temperature_read()) * 503.975 / 4096.0 - 273.15;
+  vccint = ((double)xadc_vccint_read()) / ((double)0x555);
+  vccaux = ((double)xadc_vccaux_read()) / ((double)0x555);
+  vccbram = ((double)xadc_vccbram_read()) / ((double)0x555);
+
+  printf( "%d.%01dC ", (int) temp, (int) (temp - (double)((int)temp)) * 10);
+  if( temp < 4.0 || temp > 108.0 ) {  // temperature sensor has ~6C max error, plus give 2 deg margin
+    printf( "FAIL: temperature out of range\n" );
+    res++;
+  }
+  printf( "%d.%02dVint ", (int) vccint, (int) ((vccint - (double)((int) vccint)) * 100));
+  if( vccint < (0.95 * 0.98) || vccint > (1.05 * 1.02) ) { // there's a +/-2% error on XADC readings for supplies
+    printf( "FAIL: vccint out of range\n" );
+    res++;
+  }
+  printf( "%d.%02dVaux ", (int) vccaux, (int) ((vccaux - (double)((int) vccaux)) * 100) );
+  if( vccaux < (1.71 * 0.98) || vccaux > (1.89 * 1.02) ) {
+    printf( "FAIL: vccaux out of range\n" );
+    res++;
+  }
+  printf( "%d.%02dVbram ", (int) vccbram, (int) ((vccbram - (double)((int) vccbram)) * 100) );
+  if( vccbram < (0.95 * 0.98) || vccbram > (1.05 * 1.02) ) {
+    printf( "FAIL: vccaux out of range\n" );
+    res++;
+  }
+
+  if( res == 0 )
+    printf( "PASS\n" );
+  
+  return res;
+  }
+
 int test_board(int test_number) {
   int result = 0;
 
-  if( test_number == MEMORY_TEST || test_number == ALL_TESTS ) {
-    result += test_memory();
-  }
-  if( test_number == VIDEO_TEST || test_number == ALL_TESTS ) {
-    result += test_video();
-  }
-  if( test_number == LED_TEST || test_number == ALL_TESTS ) {
-    result += test_leds();
-  }
-  if( test_number == USB_TEST || test_number == ALL_TESTS ) {
-    result += test_usb();
-  }
-  if( test_number == FAN_TEST || test_number == ALL_TESTS ) {
-    result += test_fan();
+  if( test_number == ALL_TESTS )
+    printf( "FULL SELFTEST begin for NeTV2MVP (DNA %016llx)\n", dna_id_read() );
+  
+  if( test_number == XADC_TEST || test_number == ALL_TESTS ) {
+    result += test_xadc();
   }
   if( test_number == LOOPBACK_TEST || test_number == ALL_TESTS ) {
     result += test_loopback();
   }
+  if( test_number == LED_TEST || test_number == ALL_TESTS ) {
+    result += test_leds();
+  }
+  if( test_number == FAN_TEST || test_number == ALL_TESTS ) {
+    result += test_fan();
+  }
+  if( test_number == USB_TEST || test_number == ALL_TESTS ) {
+    result += test_usb();
+  }
   if( test_number == GTP_TEST || test_number == ALL_TESTS ) {
     result += test_gtp();
+  }
+  if( test_number == VIDEO_TEST || test_number == ALL_TESTS ) {
+    result += test_video();
   }
   if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
     result += test_sdcard();
   }
+  if( test_number == MEMORY_TEST || test_number == ALL_TESTS ) {
+    result += test_memory();
+  }
 
+  if( test_number == ALL_TESTS )
+    printf( "FULL SELFTEST done for NeTV2MVP (DNA %016llx) ERRORS: %d\n", dna_id_read(), result );
+  
   return result;
 }

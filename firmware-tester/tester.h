@@ -9,6 +9,7 @@ enum tests {
   FAN_TEST,
   LOOPBACK_TEST,
   GTP_TEST,
+  XADC_TEST,
   MAX_TESTS
 };
 
@@ -26,3 +27,4 @@ int test_usb(void);
 int test_loopback(void);
 int test_gtp(void);
 int test_leds(void);
+int test_xadc(void);

@@ -1317,7 +1317,7 @@ class TesterSoC(BaseSoC):
         sdcard_pads = platform.request('sdcard')
         self.submodules.sdclk = SDClockerS7()
         self.submodules.sdphy = SDPHY(sdcard_pads, platform.device)
-        self.submodules.sdcore = SDCore(self.sdphy)
+        self.submodules.sdcore = SDCore(self.sdphy, csr_data_width=8)
         self.submodules.sdtimer = Timer()
 
         self.submodules.bist_generator = BISTBlockGenerator(random=True)
@@ -1337,7 +1337,9 @@ class TesterSoC(BaseSoC):
         self.sdclk.cd_sd_fb.clk.attr.add("keep")
         self.platform.add_false_path_constraints(
             self.crg.cd_sys.clk,
-            self.sdclk.cd_sd.clk,
+            self.sdclk.cd_sd.clk)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
             self.sdclk.cd_sd_fb.clk)
 
 
@@ -1516,6 +1518,12 @@ class TesterSoC(BaseSoC):
             self.sdphy.sdpads.cmd.i,
             self.sdphy.io.cmd_t.oe,
             self.sdphy.io.data_t.oe,
+        #    self.sdcore.cmddone,
+        #    self.sdcore.waitresp,
+        #    self.sdcore.dataxfer,
+        #    self.sdcore.datadone,
+        #    self.sdcore.pos,
+        #    self.sdcore.cmdevt.status,
         ]
         self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, clock_domain="sd")
 

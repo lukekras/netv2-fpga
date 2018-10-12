@@ -386,6 +386,7 @@ class CRG(Module):
         self.clock_domains.cd_clk200 = ClockDomain()
         self.clock_domains.cd_clk100 = ClockDomain()
         self.clock_domains.cd_eth = ClockDomain()
+        self.clock_domains.cd_clk50 = ClockDomain()
 
         clk50 = platform.request("clk50")
         rst = Signal()
@@ -398,15 +399,14 @@ class CRG(Module):
         pll_clk200 = Signal()
         pll_clk50 = Signal()
 
+        self.specials += Instance("BUFG", i_I=clk50, o_O=self.cd_clk50.clk)
         if use_ss:
             ss_fb = Signal()
             clk50_ss = Signal()
             clk50_ss_buf = Signal()
             pll_ss_locked = Signal()
 
-            clk50_distbuf = Signal()
             self.specials += [
-                Instance("BUFG", i_I=clk50, o_O=clk50_distbuf),
                 Instance("MMCME2_ADV",
                          p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
                          o_LOCKED=pll_ss_locked,
@@ -414,7 +414,7 @@ class CRG(Module):
                          # VCO
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                          p_CLKFBOUT_MULT_F=56.0, p_CLKFBOUT_PHASE=0.000, p_DIVCLK_DIVIDE=4,
-                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=ss_fb, o_CLKFBOUT=ss_fb,
+                         i_CLKIN1=self.cd_clk50.clk, i_CLKFBIN=ss_fb, o_CLKFBOUT=ss_fb,
 
                          # pix clk
                          p_CLKOUT0_DIVIDE_F=14, p_CLKOUT0_PHASE=0.000, o_CLKOUT0=clk50_ss,
@@ -461,7 +461,7 @@ class CRG(Module):
 
                 AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~pll_ss_locked ),
             ]
-            self.comb += self.cd_eth.clk.eq(clk50_distbuf)
+            self.comb += self.cd_eth.clk.eq(self.cd_clk50.clk)
 
         else:
             pll_fb_bufg = Signal()
@@ -472,7 +472,7 @@ class CRG(Module):
                          # VCO @ 1600 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                          p_CLKFBOUT_MULT=32, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
+                         i_CLKIN1=self.cd_clk50.clk, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
 
                          # 100 MHz
                          p_CLKOUT0_DIVIDE=16, p_CLKOUT0_PHASE=0.0,
@@ -1214,6 +1214,7 @@ class LoopTest(Module, AutoCSR):
             self.hax_rx.status.eq(Cat(0, 0, pcie_pads.hax2, pcie_pads.hax3, pcie_pads.hax4, 0, 0, pcie_pads.hax7, 0, 0)), # cat from LSB->MSB
         ]
 
+
 class TesterSoC(BaseSoC):
     csr_peripherals = [
         "hdmi_out0",
@@ -1235,9 +1236,6 @@ class TesterSoC(BaseSoC):
         "bist_generator",
         "bist_checker",
         "gtp0",
-        "gtp1",
-        "gtp2",
-        "gtp3",
     ]
     csr_map_update(BaseSoC.csr_map, csr_peripherals)
 
@@ -1372,11 +1370,10 @@ class TesterSoC(BaseSoC):
             self.crg.cd_sys.clk,
             self.sdclk.cd_sd_fb.clk)
 
-
         #### GTP interfaces
         from liteiclink.transceiver.gtp_7series import GTPQuadPLL, GTP
 
-        # refclk
+        # refclk  TODO: change to diff pair input, 100MHz
         refclk125 = Signal()
         refclk125_bufg = Signal()
         pll_fb = Signal()
@@ -1415,52 +1412,6 @@ class TesterSoC(BaseSoC):
             self.crg.cd_sys.clk,
             self.gtp0.cd_tx.clk,
             self.gtp0.cd_rx.clk)
-
-        self.submodules.gtp1 = GTP(qpll,
-                                   platform.request("gtp_tx", 1),
-                                   platform.request("gtp_rx", 1),
-                                   (100e6),
-                                   clock_aligner=False, internal_loopback=False)
-
-        self.gtp1.cd_tx.clk.attr.add("keep")
-        self.gtp1.cd_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.gtp1.cd_tx.clk, 1e9 / self.gtp1.tx_clk_freq)
-        platform.add_period_constraint(self.gtp1.cd_rx.clk, 1e9 / self.gtp1.tx_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.gtp1.cd_tx.clk,
-            self.gtp1.cd_rx.clk)
-
-        self.submodules.gtp2 = GTP(qpll,
-                                   platform.request("gtp_tx", 2),
-                                   platform.request("gtp_rx", 2),
-                                   (100e6),
-                                   clock_aligner=False, internal_loopback=False)
-
-        self.gtp2.cd_tx.clk.attr.add("keep")
-        self.gtp2.cd_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.gtp2.cd_tx.clk, 1e9 / self.gtp2.tx_clk_freq)
-        platform.add_period_constraint(self.gtp2.cd_rx.clk, 1e9 / self.gtp2.tx_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.gtp2.cd_tx.clk,
-            self.gtp2.cd_rx.clk)
-
-        self.submodules.gtp3 = GTP(qpll,
-                                   platform.request("gtp_tx", 3),
-                                   platform.request("gtp_rx", 3),
-                                   (100e6),
-                                   clock_aligner=False, internal_loopback=False)
-
-        self.gtp3.cd_tx.clk.attr.add("keep")
-        self.gtp3.cd_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.gtp3.cd_tx.clk, 1e9 / self.gtp3.tx_clk_freq)
-        platform.add_period_constraint(self.gtp3.cd_rx.clk, 1e9 / self.gtp3.tx_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.gtp3.cd_tx.clk,
-            self.gtp3.cd_rx.clk)
-
 
         #### analyzer ethernet
         from liteeth.phy.rmii import LiteEthPHYRMII
@@ -1604,6 +1555,132 @@ class TesterSoC(BaseSoC):
     def do_exit(self, vns):
         self.analyzer.export_csv(vns, "test/analyzer.csv")
 
+
+class GtpTesterSoC(BaseSoC):
+    csr_peripherals = [
+        "gtp0",
+        "gtp1",
+        "gtp2",
+        "gtp3",
+    ]
+    csr_map_update(BaseSoC.csr_map, csr_peripherals)
+
+    def __init__(self, platform, part, *args, **kwargs):
+        BaseSoC.__init__(self, platform, *args, **kwargs)
+
+        self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan on
+        if part == "35":  # green if 35T
+            self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(1)  # OV0 green
+        else:  # red if 100T
+            self.comb += platform.request("fpga_led4", 0).eq(1)  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(0)  # OV0 green
+
+        self.led_out = Signal()
+        led_counter = Signal(32)
+        self.sync += led_counter.eq(led_counter + 1)
+        self.comb += self.led_out.eq(led_counter[26])
+
+        self.comb += [
+            platform.request("fpga_led0", 0).eq(~self.led_out),
+            platform.request("fpga_led1", 0).eq(self.led_out),
+            platform.request("fpga_led2", 0).eq(self.led_out),
+            platform.request("fpga_led3", 0).eq(~self.led_out),
+        ]
+        
+        #### GTP interfaces
+        from liteiclink.transceiver.gtp_7series import GTPQuadPLL, GTP
+
+        # refclk  TODO: change to diff pair input, 100MHz
+        refclk125 = Signal()
+        refclk125_bufg = Signal()
+        pll_fb = Signal()
+        self.specials += [
+            Instance("PLLE2_BASE",
+                     p_STARTUP_WAIT="FALSE",  # o_LOCKED=,
+
+                     # VCO @ 1GHz
+                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
+                     p_CLKFBOUT_MULT=35, p_DIVCLK_DIVIDE=4,
+                     i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
+
+                     # 125MHz
+                     p_CLKOUT0_DIVIDE=7, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
+                     ),
+            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
+        ]
+        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
+
+        # qpll
+        self.submodules.qpll = qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
+        print(qpll)
+
+        # gtp
+        self.submodules.gtp0 = GTP(qpll,
+                                   platform.request("gtp_tx", 0),
+                                   platform.request("gtp_rx", 0),
+                                   (100e6),
+                                   clock_aligner=False, internal_loopback=False)
+
+        self.gtp0.cd_tx.clk.attr.add("keep")
+        self.gtp0.cd_rx.clk.attr.add("keep")
+        platform.add_period_constraint(self.gtp0.cd_tx.clk, 1e9 / self.gtp0.tx_clk_freq)
+        platform.add_period_constraint(self.gtp0.cd_rx.clk, 1e9 / self.gtp0.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.gtp0.cd_tx.clk,
+            self.gtp0.cd_rx.clk)
+
+        self.submodules.gtp1 = GTP(qpll,
+                                   platform.request("gtp_tx", 1),
+                                   platform.request("gtp_rx", 1),
+                                   (100e6),
+                                   clock_aligner=False, internal_loopback=False)
+
+        self.gtp1.cd_tx.clk.attr.add("keep")
+        self.gtp1.cd_rx.clk.attr.add("keep")
+        platform.add_period_constraint(self.gtp1.cd_tx.clk, 1e9 / self.gtp1.tx_clk_freq)
+        platform.add_period_constraint(self.gtp1.cd_rx.clk, 1e9 / self.gtp1.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.gtp1.cd_tx.clk,
+            self.gtp1.cd_rx.clk)
+
+        self.submodules.gtp2 = GTP(qpll,
+                                   platform.request("gtp_tx", 2),
+                                   platform.request("gtp_rx", 2),
+                                   (100e6),
+                                   clock_aligner=False, internal_loopback=False)
+
+        self.gtp2.cd_tx.clk.attr.add("keep")
+        self.gtp2.cd_rx.clk.attr.add("keep")
+        platform.add_period_constraint(self.gtp2.cd_tx.clk, 1e9 / self.gtp2.tx_clk_freq)
+        platform.add_period_constraint(self.gtp2.cd_rx.clk, 1e9 / self.gtp2.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.gtp2.cd_tx.clk,
+            self.gtp2.cd_rx.clk)
+
+        self.submodules.gtp3 = GTP(qpll,
+                                   platform.request("gtp_tx", 3),
+                                   platform.request("gtp_rx", 3),
+                                   (100e6),
+                                   clock_aligner=False, internal_loopback=False)
+
+        self.gtp3.cd_tx.clk.attr.add("keep")
+        self.gtp3.cd_rx.clk.attr.add("keep")
+        platform.add_period_constraint(self.gtp3.cd_tx.clk, 1e9 / self.gtp3.tx_clk_freq)
+        platform.add_period_constraint(self.gtp3.cd_rx.clk, 1e9 / self.gtp3.tx_clk_freq)
+        self.platform.add_false_path_constraints(
+            self.crg.cd_sys.clk,
+            self.gtp3.cd_tx.clk,
+            self.gtp3.cd_rx.clk)
+
+        # instantiate fundamental clocks -- Vivado will derive the rest via PLL programmings
+        self.platform.add_platform_command(
+            "create_clock -name clk50 -period 20.0 [get_nets clk50]")
+
+
 def main():
     if os.environ['PYTHONHASHSEED'] != "1":
         print( "PYTHONHASHEED must be set to 1 for consistent validation results. Failing to set this results in non-deterministic compilation results")
@@ -1614,7 +1691,7 @@ def main():
         "-p", "--part", help="specify which FPGA part to build for", choices=["35", "50", "100"], default="35"
     )
     parser.add_argument(
-        "-t", "--target", help="which FPGA environment to build for", choices=["base", "video_overlay", "tester"], default="video_overlay"
+        "-t", "--target", help="which FPGA environment to build for", choices=["base", "video_overlay", "tester", "gtptester"], default="video_overlay"
     )
     args = parser.parse_args()
 
@@ -1625,6 +1702,8 @@ def main():
         soc = VideoOverlaySoC(platform, part=args.part)
     elif args.target == "tester":
         soc = TesterSoC(platform, part=args.part)
+    elif args.target == "gtptester":
+        soc = GtpTesterSoC(platform, part=args.part)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)

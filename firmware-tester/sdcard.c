@@ -11,6 +11,7 @@
 
 //#define SDCARD_DEBUG
 
+#ifdef CSR_SDCORE_BASE
 /* clocking */
 
 #ifdef CSR_SDCLK_CMD_DATA_ADDR
@@ -721,3 +722,4 @@ int sdcard_test(unsigned int loops) {
 
 	return errors;
 }
+#endif

@@ -135,6 +135,7 @@ static int addr_map[S7_MMCM_MAP_LEN] = {0x28, 0x9, 0x8, 0xa, 0xb, 0xc, 0xd, 0xe,
 void mmcm_dump_code(void) {
   int i;
 
+#ifdef CSR_HDMI_IN0_CLOCKING_MMCM_RESET_ADDR
   printf( "// hdmi0 out MMCM\n" );
   printf( "int hdmi0_mmcm_out[%d] = {", S7_MMCM_MAP_LEN * 2 );
   for( i = 0; i < S7_MMCM_MAP_LEN; i++ ) {
@@ -182,7 +183,8 @@ void mmcm_dump_code(void) {
       printf( ", " );
   }
   printf( "};\n" );
-
+#endif
+  
 }
 
 /*

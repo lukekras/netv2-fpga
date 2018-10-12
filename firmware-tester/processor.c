@@ -754,9 +754,14 @@ void processor_start(int mode)
 	hdmi_in1_edid_hpd_en_write(1);
 #endif
 
+	
 	// tester will loopback on itself, and it generates DVI signals not HDMI
+#ifdef CSR_HDMI_IN0_BASE
 	hdmi_in0_decode_terc4_dvimode_write(1);
+#endif
+#ifdef CSR_HDMI_IN1_BASE
 	hdmi_in1_decode_terc4_dvimode_write(1);
+#endif
 }
 
 void processor_set_hdmi_out0_source(int source) {

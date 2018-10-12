@@ -1250,6 +1250,8 @@ void ci_service(void)
 			wputchar('\n');
 		} 
 #endif
+		
+#ifdef CSR_HDMI_IN0_BASE
 		else if(strcmp(token, "nudge") == 0 ) {
 		  int chan = strtol(get_token(&str), NULL, 0);
 		  int amount = strtol(get_token(&str), NULL, 0);
@@ -1263,7 +1265,9 @@ void ci_service(void)
 		  hdmi_in1_decode_terc4_dvimode_write(1);
 		} else if (strcmp(token, "hdmimode1") == 0 ) {
 		  hdmi_in1_decode_terc4_dvimode_write(0);
-		} else if (strcmp(token, "tester") == 0 ) {
+		}
+#endif
+		else if (strcmp(token, "tester") == 0 ) {
 		  token = get_token(&str);
 		  if(strcmp(token, "leds") == 0) {
 		    test_board(LED_TEST);
@@ -1286,7 +1290,9 @@ void ci_service(void)
 		  } else {
 		    test_board(ALL_TESTS);
 		  }
-		} else if(strcmp(token, "sdclk") == 0) {
+		}
+#ifdef CSR_SDCORE_BASE
+		else if(strcmp(token, "sdclk") == 0) {
 		  token = get_token(&str);
 		  sdclk_set_clk(atoi(token));
 		}
@@ -1296,6 +1302,7 @@ void ci_service(void)
 		  token = get_token(&str);
 		  sdcard_test(atoi(token));
 		}
+#endif
 #ifdef CSR_OPSIS_I2C_MASTER_W_ADDR
 		else if(strcmp(token, "opsis_eeprom") == 0) {
 			opsis_eeprom_dump();

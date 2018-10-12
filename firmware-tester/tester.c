@@ -92,6 +92,7 @@ int test_video(void) {
   int num_err_printed = 0;
   int i;
   
+#ifdef CSR_HDMI_IN0_BASE  
   printf( "video test: " );
 
   /////////// PLL TEST
@@ -241,7 +242,7 @@ int test_video(void) {
   } else {
     printf( "FAIL %d errors\n", result );
   }
-  
+#endif  
   return result;
 }
 
@@ -323,6 +324,7 @@ int test_memory(void) {
  */
 int test_leds(void) {
   int res = 0;
+#ifdef CSR_LOOPTEST_BASE
   int last_event;
   int i;
   
@@ -338,6 +340,7 @@ int test_leds(void) {
 
   // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
   printf( "FINISHED\n" );
+#endif
   return res;
 }
 
@@ -346,6 +349,7 @@ int test_leds(void) {
  */
 int test_fan(void) {
   int res = 0;
+#ifdef CSR_LOOPTEST_BASE
   int last_event;
   int i;
   
@@ -366,12 +370,14 @@ int test_fan(void) {
 
   // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
   printf( "FINISHED\n" );
+#endif
   return res;
 }
 
 int test_sdcard(void) {
   int res = 0;
-  
+
+#ifdef CSR_SDCORE_BASE
   printf( "SD test: " );
   // sd clock defaults to 5MHz in this implementation, don't call frequency init...
   sdcard_init();
@@ -382,6 +388,7 @@ int test_sdcard(void) {
   } else {
     printf( "FAIL %d errors\n", res );
   }
+#endif
   return res;
 }
 
@@ -437,6 +444,7 @@ int loopback_kernel_u16( void (*tx_func)(unsigned short), int txbit, unsigned sh
 int test_usb(void) {
   int res = 0;
 
+#ifdef CSR_LOOPTEST_BASE
   printf( "USB test: " );
   res += loopback_kernel( looptest_fusb_tx_write, 0, looptest_fusb_rx_read, 0, "USB" );
   
@@ -445,6 +453,7 @@ int test_usb(void) {
   } else {
     printf( "FAIL %d errors\n", res );
   }
+#endif
   return res;
 }
 
@@ -454,6 +463,7 @@ int test_usb(void) {
 int test_loopback(void) {
   int res = 0;
 
+#ifdef CSR_LOOPTEST_BASE
   printf( "Loopback tests: " );
 
   res += loopback_kernel( looptest_mcu_tx_write, 0, looptest_mcu_rx_read, 0, "MCUINT" );
@@ -472,46 +482,61 @@ int test_loopback(void) {
   } else {
     printf( "FAIL %d errors\n", res );
   }
+#endif
   return res;
 }
 
 /*
   Loopback test of high-speed GTP signals -- requires each GTP link to wire Tx to Rx
  */
+#define GTP_ITERS 10000000
 int test_gtp(void) {
   int res = 0;
+  int diff = 0;
 
+#ifdef CSR_GTP0_BASE
   printf( "GTP tests: " );
 
   int i;
   // accumulate "real time" errors over about 0.5 seconds
-  for( i = 0; i < 10000000; i++ ) {
+  for( i = 0; i < GTP_ITERS; i++ ) {
     res += gtp0_rx_gtp_prbs_err_read();
   }
   if( res != 0 )
-    printf( "FAIL %d errors on GTP0\n" );
+    printf( "FAIL %d errors on GTP0\n", res );
+#endif
+  diff = res;
 
-  for( i = 0; i < 10000000; i++ ) {
+#ifdef CSR_GTP1_BASE
+  for( i = 0; i < GTP_ITERS; i++ ) {
     res += gtp1_rx_gtp_prbs_err_read();
   }
-  if( res != 0 )
-    printf( "FAIL %d errors on GTP1\n" );
-  
-  for( i = 0; i < 10000000; i++ ) {
+  if( res - diff != 0 )
+    printf( "FAIL %d errors on GTP1\n", res - diff );
+#endif
+
+  diff = res;
+#ifdef CSR_GTP2_BASE
+  for( i = 0; i < GTP_ITERS; i++ ) {
     res += gtp2_rx_gtp_prbs_err_read();
   }
-  if( res != 0 )
-    printf( "FAIL %d errors on GTP2\n" );
+  if( res - diff != 0 )
+    printf( "FAIL %d errors on GTP2\n", res - diff );
+#endif
 
-  for( i = 0; i < 10000000; i++ ) {
+  diff = res;
+#ifdef CSR_GTP3_BASE
+  for( i = 0; i < GTP_ITERS; i++ ) {
     res += gtp3_rx_gtp_prbs_err_read();
   }
-  if( res != 0 )
-    printf( "FAIL %d errors on GTP3\n" );
+  if( res - diff != 0 )
+    printf( "FAIL %d errors on GTP3\n", res - diff );
+#endif
   
   if( res == 0 ) {
     printf( "PASS\n" );
   }
+  
   return res;
 }
 

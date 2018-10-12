@@ -96,9 +96,9 @@ int test_video(void) {
   int i;
   int firstfail = 1;
   
-#ifdef CSR_HDMI_IN0_BASE  
   printf( "  {\n");
   printf( "    \"subtest_name\":\"video\", \n" );
+#ifdef CSR_HDMI_IN0_BASE  
   printf( "    \"failures\":[\n" );
 
   /////////// PLL TEST
@@ -302,7 +302,9 @@ int test_video(void) {
 
   printf( "\n    ],\n" );
   printf( "    \"subtest_errcount\":%d\n  }", result );
-#endif  
+#else
+  printf( "    \"subtest_errcount\":%d\n  }", -1 );
+#endif
   return result;
 }
 
@@ -394,12 +396,12 @@ int test_memory(void) {
  */
 int test_leds(void) {
   int res = 0;
+  printf( "  {\n");
+  printf( "    \"subtest_name\":\"LED\", \n" );
 #ifdef CSR_LOOPTEST_BASE
   int last_event;
   int i;
   
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"LED\", \n" );
   printf( "    \"failures\":[\n" );
   elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/8);
 
@@ -413,6 +415,8 @@ int test_leds(void) {
   // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
   printf( "\n    ],\n" );
   printf( "    \"subtest_errcount\":%d\n  }", res );
+#else
+  printf( "    \"subtest_errcount\":%d\n  }", -1 );
 #endif
   return res;
 }
@@ -422,12 +426,12 @@ int test_leds(void) {
  */
 int test_fan(void) {
   int res = 0;
+  printf( "  {\n");
+  printf( "    \"subtest_name\":\"fan\", \n" );
 #ifdef CSR_LOOPTEST_BASE
   int last_event;
   int i;
   
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"fan\", \n" );
   printf( "    \"info\":[      \n      " );
 
   elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY);
@@ -455,6 +459,8 @@ int test_fan(void) {
   // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
   printf( "\n    ],\n" );
   printf( "    \"subtest_errcount\":%d\n  }", res );
+#else
+  printf( "    \"subtest_errcount\":%d\n  }", -1 );
 #endif
   return res;
 }
@@ -463,9 +469,9 @@ int test_sdcard(void) {
   int res = 0;
   int firstfail = 1;
 
-#ifdef CSR_SDCORE_BASE
   printf( "  {\n");
   printf( "    \"subtest_name\":\"SD\", \n" );
+#ifdef CSR_SDCORE_BASE
   printf( "    \"failures\":[\n" );
   // sd clock defaults to 5MHz in this implementation, don't call frequency init...
   res += sdcard_init();
@@ -489,6 +495,8 @@ int test_sdcard(void) {
   printf( "\n    ],\n" );
   
   printf( "    \"subtest_errcount\":%d\n  }", res );
+#else
+  printf( "    \"subtest_errcount\":%d\n  }", -1 );
 #endif
   return res;
 }
@@ -566,15 +574,16 @@ int test_usb(void) {
   int res = 0;
   int firstfail = 1;
   
-#ifdef CSR_LOOPTEST_BASE
   printf( "  {\n");
   printf( "    \"subtest_name\":\"USB\", \n" );
+#ifdef CSR_LOOPTEST_BASE
   printf( "    \"failures\":[\n" );
   res += loopback_kernel( looptest_fusb_tx_write, 0, looptest_fusb_rx_read, 0, "USB", &firstfail );
   
   printf( "\n    ],\n" );
   printf( "    \"subtest_errcount\":%d\n  }", res );
 #endif
+  printf( "    \"subtest_errcount\":%d\n  }", -1 );
   return res;
 }
 
@@ -585,9 +594,9 @@ int test_loopback(void) {
   int res = 0;
   int firstfail = 1;
 
-#ifdef CSR_LOOPTEST_BASE
   printf( "  {\n");
   printf( "    \"subtest_name\":\"loopback\", \n" );
+#ifdef CSR_LOOPTEST_BASE
   printf( "    \"failures\":[\n" );
 
   res += loopback_kernel( looptest_mcu_tx_write, 0, looptest_mcu_rx_read, 0, "MCUINT", &firstfail );
@@ -603,6 +612,8 @@ int test_loopback(void) {
   
   printf( "\n    ],\n" );
   printf( "    \"subtest_errcount\":%d\n  }", res );
+#else
+  printf( "    \"subtest_errcount\":%d\n  }", -1 );
 #endif
   return res;
 }

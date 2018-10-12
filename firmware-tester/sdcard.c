@@ -613,11 +613,9 @@ int sdcard_init(void) {
 			break;
 		}
 		busy_wait(1);
-#ifdef SDCARD_DEBUG
-		if ( i > 3 )
+		if ( i > 100 )
 		  return 1;
 		i++;
-#endif
 	}
 
 	/* send identification */
@@ -683,6 +681,7 @@ int sdcard_test(unsigned int loops) {
 	length = 4*1024*1024;
 	blocks = length/512;
 
+	int firstfail = 1;
 	for(i=0; i<loops; i++) {
 		/* write */
 		start = sdtimer_get();
@@ -710,9 +709,23 @@ int sdcard_test(unsigned int loops) {
 		errors = bist_checker_errors_read();
 
 		/* infos */
-		if ((i%8) == 0)
+#if 0
+		if ((i%8) == 0) {
 			printf("LOOP WRITE_SPEED  READ_SPEED ERRORS\n");
+		}
 		printf("%4d %6d MB/s %6d MB/s %6d\n",
+			i,
+			write_speed/(1024*1024),
+			read_speed/(1024*1024),
+			errors
+		);
+#endif
+		if( firstfail ) {
+		  firstfail = 0;
+		} else {
+		  printf( ",\n" );
+		}
+		printf("      {\"loop\":%4d, \"write_speed\":%6d, \"read_speed\":%6d, \"errors\":%6d}",
 			i,
 			write_speed/(1024*1024),
 			read_speed/(1024*1024),

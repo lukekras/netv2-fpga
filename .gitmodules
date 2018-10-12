@@ -26,7 +26,7 @@
 [submodule "deps/litesdcard"]
 	path = deps/litesdcard
 	url = https://github.com/AlphamaxMedia/litesdcard.git
-	branch = master
+	branch = tester-master
 [submodule "deps/liteiclink"]
 	path = deps/liteiclink
 	url = https://github.com/AlphamaxMedia/liteiclink.git

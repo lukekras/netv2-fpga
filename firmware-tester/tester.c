@@ -356,15 +356,21 @@ int test_fan(void) {
   printf( "Fan test, please observe if the fan stops spinning: " );
   elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY);
 
-  for( i = 0; i < 8; i++ ) {
+  for( i = 0; i < 4; i++ ) {
     looptest_fan_pwm_write(i & 1);
     if( i & 1 ) {
       printf( "spinning " );
+      while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
+	;
     } else {
       printf( "stopped " );
+      while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
+	;
+      while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
+	;
+      while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
+	;
     }
-    while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
-      ;
   }
   looptest_fan_pwm_write(1);  
 

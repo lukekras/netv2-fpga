@@ -811,6 +811,7 @@ int test_board(int test_number) {
   printf( "  ],\n" );
   if( test_number == ALL_TESTS )
     printf( "  \"test_errcount\":%d \n}\n", result );
-  
+
+  printf( ";\n" );
   return result;
 }

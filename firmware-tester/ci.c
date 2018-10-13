@@ -994,7 +994,7 @@ static void debug_ddr(void)
 
 void ci_prompt(void)
 {
-	wprintf("H2U %s>", uptime_str());
+	wprintf("TESTER_NX8D %s>", uptime_str());
 }
 
 void ci_service(void)

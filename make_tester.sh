@@ -15,6 +15,7 @@ cp ./build/gateware/top.bit ./tester-images/tester-100.bit
 ./netv2mvp.py -p 35 -t tester
 cp ./build/gateware/top.bit ./tester-images/tester-35.bit
 
+cd ./firmware-tester && make clean && make && cd ..
 cp ./firmware-tester/firmware.bin ./tester-images/tester-firmware.bin
 
 

@@ -31,8 +31,8 @@ then
 fi
 
 echo "Running user firmware build..."
-cd ./firmware-tester && make clean && make && cd ..
-cp ./firmware-tester/firmware.bin ./production-images/user-firmware.bin
+cd ./firmware && make clean && make && cd ..
+cp ./firmware/firmware.bin ./production-images/user-firmware.bin
 
 echo "All requested builds done."
 

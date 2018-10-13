@@ -839,7 +839,7 @@ class VideoOverlaySoC(BaseSoC):
         # hdmi over
         self.comb += [
             platform.request("hdmi_sda_over_up").eq(0),
-            platform.request("hdmi_sda_over_dn").eq(0),
+            hdmi_in0_pads.sda_drv.eq(0),
         ]
 
         platform.add_platform_command(
@@ -1587,7 +1587,7 @@ class GtpTesterSoC(BaseSoC):
             platform.request("fpga_led2", 0).eq(self.led_out),
             platform.request("fpga_led3", 0).eq(~self.led_out),
         ]
-        
+
         #### GTP interfaces
         from liteiclink.transceiver.gtp_7series import GTPQuadPLL, GTP
 

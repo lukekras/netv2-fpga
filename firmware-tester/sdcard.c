@@ -8,6 +8,7 @@
 #include <system.h>
 
 #include "sdcard.h"
+#include "tester.h"
 
 //#define SDCARD_DEBUG
 
@@ -681,7 +682,6 @@ int sdcard_test(unsigned int loops) {
 	length = 4*1024*1024;
 	blocks = length/512;
 
-	int firstfail = 1;
 	for(i=0; i<loops; i++) {
 		/* write */
 		start = sdtimer_get();
@@ -720,17 +720,18 @@ int sdcard_test(unsigned int loops) {
 			errors
 		);
 #endif
-		if( firstfail ) {
-		  firstfail = 0;
-		} else {
-		  printf( ",\n" );
-		}
-		printf("      {\"loop\":%4d, \"write_speed\":%6d, \"read_speed\":%6d, \"errors\":%6d}",
-			i,
-			write_speed/(1024*1024),
-			read_speed/(1024*1024),
-			errors
-		);
+		char msg[MSGLEN];
+		int checklen;
+		
+		checklen = snprintf( msg, MSGLEN, "{\"info\":\
+{\"loop\":%4d, \"write_speed\":%6d, \"read_speed\":%6d, \"errors\":%6d}}", 
+				     i,
+				     write_speed/(1024*1024),
+				     read_speed/(1024*1024),
+				     errors
+				     );
+		checklenf( checklen );
+		printj( "SD", msg );
 	}
 
 	return errors;

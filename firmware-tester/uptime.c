@@ -9,11 +9,10 @@
 #include "stdio_wrap.h"
 
 static int uptime_seconds = 0;
+static int last_event_uptime;
 void uptime_service(void)
 {
-	static int last_event;
-
-	if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY)) {
+	if(elapsed(&last_event_uptime, SYSTEM_CLOCK_FREQUENCY)) {
 		uptime_seconds++;
 	}
 }

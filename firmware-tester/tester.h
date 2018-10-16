@@ -28,3 +28,7 @@ int test_loopback(void);
 int test_gtp(void);
 int test_leds(void);
 int test_xadc(void);
+
+#define MSGLEN 256
+void checklenf( int checklen );
+void printj(char *subtest, char *msg);

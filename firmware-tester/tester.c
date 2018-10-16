@@ -15,9 +15,35 @@
 #include "hdmi_out1.h"
 
 #include "sdcard.h"
+#include "uptime.h"
 
 // output validated with https://jsonformatter.curiousconcept.com/
 //#define FORCERR   // uncomment to help debug JSON formatting
+
+static long long my_dna = 0LL;
+static char model_str[] = "NeTV2MVP";
+static char rev_str[] = "PVT1C";
+static char tester_ver[] = "1";
+
+void checklenf( int checklen ) {
+  if(checklen >= MSGLEN-1)
+    printf( "\n{\"internal_error\":\"string overflow\"}\n" );
+}
+
+void printj(char *subtest, char *msg) {
+  uptime_service();  
+  printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"time\":%d, \"subtest\":\"%s\", \"msg\": [%s] }\n",
+	  model_str, rev_str, tester_ver, my_dna, uptime(), subtest, msg );
+}
+
+void errcnt_macro(char *testname, int res) {
+  char msg[MSGLEN];
+  int checklen;
+  
+  checklen = snprintf( msg, MSGLEN, "{\"errcnt\":%d}", res );
+  checklenf( checklen );
+  printj( testname, msg );
+}
 
 static int lfsr_state = 1;
 void lfsr_init(int seed) {
@@ -94,12 +120,11 @@ int test_video(void) {
   int resdiff;
   int num_err_printed = 0;
   int i;
-  int firstfail = 1;
   
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"video\", \n" );
 #ifdef CSR_HDMI_IN0_BASE  
-  printf( "    \"failures\":[\n" );
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "video";
 
   /////////// PLL TEST
   resdiff = result;
@@ -110,15 +135,13 @@ int test_video(void) {
   if( hdmi_in0_freq_value_read() != VIDEO_FREQ )
     result++;
   if( resdiff != result ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"%s\",\n", "HDMI in0 res/freq" );
-    printf( "     \"syndrome\": {\"hdmi_in0_hres\":%d, ", hdmi_in0_resdetection_hres_read() );
-    printf( "\"hdmi_in0_vres\":%d, ", hdmi_in0_resdetection_vres_read() );
-    printf( "\"hdmi_in0_freq\":%d }}", hdmi_in0_freq_value_read() );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
+{\"hdmi_in0_hres\":%d, \"hdmi_in0_vres\":%d, \"hdmi_in0_freq\":%d}}]}",
+			 "HDMI in0 res/freq",
+			 hdmi_in0_resdetection_hres_read(), hdmi_in0_resdetection_vres_read(), hdmi_in0_freq_value_read() );
+    checklenf( checklen );
+    printj( testname, msg );
+    
     num_err_printed++;
   }
 
@@ -130,15 +153,13 @@ int test_video(void) {
   if( hdmi_in1_freq_value_read() != VIDEO_FREQ )
     result++;
   if( resdiff != result ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"%s\",\n", "HDMI in1 res/freq" );
-    printf( "     \"syndrome\": {\"hdmi_in1_hres\":%d, ", hdmi_in1_resdetection_hres_read() );
-    printf( "\"hdmi_in1_vres\":%d, ", hdmi_in1_resdetection_vres_read() );
-    printf( "\"hdmi_in1_freq\":%d }}", hdmi_in1_freq_value_read() );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
+{\"hdmi_in1_hres\":%d, \"hdmi_in1_vres\":%d, \"hdmi_in1_freq\":%d}}]}",
+			 "HDMI in1 res/freq",
+			 hdmi_in1_resdetection_hres_read(), hdmi_in1_resdetection_vres_read(), hdmi_in1_freq_value_read() );
+    checklenf( checklen );
+    printj( testname, msg );
+    
     num_err_printed++;
   }
 
@@ -164,13 +185,13 @@ int test_video(void) {
     if( framebuffer[i] != expected ) {
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
-	if( firstfail ) {
-	  firstfail = 0;
-	} else {
-	  printf( ",\n" );
-	}
-	printf( "    {\"name\":\"%s\",\n", "HDMI in0 link" );
-	printf( "     \"syndrome\": {\"hdmi_in0\":\"mismatch\", \"offset\":%d, \"got\":%d, \"expected\":%d}}", i, expected, framebuffer[i] );
+	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
+{\"hdmi_in0\":\"mismatch\", \"offset\":%d, \"got\":%d, \"expected\":%d}}]}",
+			     "HDMI in0 link",
+			     i, expected, framebuffer[i] );
+	checklenf( checklen );
+	printj( testname, msg );
+
 	num_err_printed++;
       }
     }
@@ -195,13 +216,13 @@ int test_video(void) {
     if( framebuffer[i] != expected ) {
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
-	if( firstfail ) {
-	  firstfail = 0;
-	} else {
-	  printf( ",\n" );
-	}
-	printf( "    {\"name\":\"%s\",\n", "HDMI in1 link" );
-	printf( "     \"syndrome\": {\"hdmi_in1\":\"mismatch\", \"offset\":%d, \"got\":%d, \"expected\":%d}}", i, expected, framebuffer[i] );
+	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
+{\"hdmi_in1\":\"mismatch\", \"offset\":%d, \"got\":%d, \"expected\":%d}}]}",
+			     "HDMI in1 link",
+			     i, expected, framebuffer[i] );
+	checklenf( checklen );
+	printj( testname, msg );
+
 	num_err_printed++;
       }
     }
@@ -222,12 +243,9 @@ int test_video(void) {
     result++;
 #endif
   if( resdiff != result ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"hdmi_in0 DDC\"}" );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"hdmi_in0 DDC\"}]}" );
+    checklenf( checklen );
+    printj( testname, msg );
   }
 
   resdiff = result;
@@ -241,12 +259,9 @@ int test_video(void) {
     result++;
 #endif
   if( resdiff != result ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"hdmi_in1 DDC\"}" );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"hdmi_in1 DDC\"}]}" );
+    checklenf( checklen );
+    printj( testname, msg );
   }
 
   ///////////// CEC TEST
@@ -272,13 +287,11 @@ int test_video(void) {
     mini_ret++;
 #endif
   if( mini_ret != 0 ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"%s\",\n", "CEC" );
-    printf( "     \"syndrome\": {\"high\":%d, \"low\":%d, \"reps\":%d}}", syndrome[1], syndrome[0], mini_ret );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": {\"high\":%d, \"low\":%d, \"reps\":%d}}]}",
+			 "CEC", syndrome[1], syndrome[0], mini_ret );
+    checklenf( checklen );
+    printj( testname, msg );
+    
     result++;
   }
   looptest_cec_tx_write(0); // return to default value after test
@@ -291,19 +304,13 @@ int test_video(void) {
   if(hdmi_in0_edid_hpd_notif_read()) {
 #endif
     result++;
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"HPD force unplug\"}" );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"HPD force unplug\"}]}" );
+    checklenf( checklen );
+    printj( testname, msg );
   }
   looptest_rx_forceunplug_write(0);
 
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", result );
-#else
-  printf( "    \"subtest_errcount\":%d\n  }", -1 );
+  errcnt_macro( testname, result );
 #endif
   return result;
 }
@@ -336,11 +343,10 @@ int test_memory(void) {
   unsigned int i, j;
   unsigned int *mem;
   unsigned int res = 0;
-  int firstfail = 1;
   
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"RAM\", \n" );
-  printf( "    \"failures\":[\n" );
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "RAM";
 
   unsigned int row_end = ((1 << MEM_ROWS) * MEM_BANKS) / sizeof(int);
   unsigned int val;
@@ -369,13 +375,10 @@ int test_memory(void) {
 #endif
       if( mem[(1 << i) + j] != val ) {
 	if( res < ERR_PRINT_LIMIT ) {
-	  if( firstfail ) {
-	    firstfail = 0;
-	  } else {
-	    printf( ",\n" );
-	  }
-	  printf( "    {\"name\":\"%s\",\n", "RAM" );
-	  printf( "     \"syndrome\": {\"addr\":%d, \"got\":%d, \"expected\":%d}}", &(mem[(1 << i) + j]), mem[(1 << i) + j], val );
+	  checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"syndrome\":{\"addr\":%d, \"got\":%d, \"expected\":%d}}]}",
+			       &(mem[(1 << i) + j]), mem[(1 << i) + j], val );
+	  checklenf( checklen );
+	  printj( testname, msg );
 	}
 	res++;
       }
@@ -386,8 +389,7 @@ int test_memory(void) {
       i++;
   }
   
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
+  errcnt_macro( testname, res );
   return(res);
 }
 
@@ -396,27 +398,26 @@ int test_memory(void) {
  */
 int test_leds(void) {
   int res = 0;
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"LED\", \n" );
+  
 #ifdef CSR_LOOPTEST_BASE
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "LED";
+
   int last_event;
   int i;
   
-  printf( "    \"failures\":[\n" );
   elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/8);
 
   for( i = 0; i < 21; i++ ) {
     while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/4) )
       ;
     looptest_leds_write(1 << (i % 3));  
+    checklen = snprintf( msg, MSGLEN, "{\"info\":{\"state\":\"pattern %d\"}}", 1 << (i % 3) );
   }
   looptest_leds_write(0);  
 
-  // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
-#else
-  printf( "    \"subtest_errcount\":%d\n  }", -1 );
+  errcnt_macro( testname, res );
 #endif
   return res;
 }
@@ -426,88 +427,80 @@ int test_leds(void) {
  */
 int test_fan(void) {
   int res = 0;
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"fan\", \n" );
+  
 #ifdef CSR_LOOPTEST_BASE
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "fan";
+  
   int last_event;
   int i;
   
-  printf( "    \"info\":[      \n      " );
-
   elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY);
   for( i = 0; i < 4; i++ ) {
     looptest_fan_pwm_write(i & 1);
     if( i & 1 ) {
-      printf( "{\"state\":\"spinning\"}" );
+      checklen = snprintf( msg, MSGLEN, "{\"info\":{\"state\":\"spinning\"}}" );
+      checklenf( checklen );
+      printj( testname, msg );
       while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
 	;
     } else {
-      printf( "{\"state\":\"stopped\"}" );
+      checklen = snprintf( msg, MSGLEN, "{\"info\":{\"state\":\"stopped\"}}" );
+      checklenf( checklen );
+      printj( testname, msg );
       while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
 	;
       while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
 	;
       while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY) )
 	;
-    }
-    if( i < 3 ) {
-      printf( ", " );
     }
   }
   looptest_fan_pwm_write(1);  
 
-  // can't really generate an error code, it's a visual test...so this is more of a "unclear" rather than "PASS/FAIL"
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
-#else
-  printf( "    \"subtest_errcount\":%d\n  }", -1 );
+  errcnt_macro( testname, res );
 #endif
   return res;
 }
 
 int test_sdcard(void) {
   int res = 0;
-  int firstfail = 1;
 
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"SD\", \n" );
 #ifdef CSR_SDCORE_BASE
-  printf( "    \"failures\":[\n" );
+
   // sd clock defaults to 5MHz in this implementation, don't call frequency init...
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "SD";
+  
   res += sdcard_init();
 #ifdef FORCERR
   res++;
 #endif
   if( res != 0 ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"%s\", ", "SD" );
-    printf( "     \"syndrome\": {\"init\":%d}}", res );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"init\":\"%d\"}]}", res);
+    checklenf( checklen );
+    printj( testname, msg );
   }
-  printf( "\n    ],\n" );
   
-  printf( "    \"info\":[\n" );
   if( res == 0 )
     res += sdcard_test(2);
-  printf( "\n    ],\n" );
-  
-  printf( "    \"subtest_errcount\":%d\n  }", res );
-#else
-  printf( "    \"subtest_errcount\":%d\n  }", -1 );
+
+  errcnt_macro( testname, res );
 #endif
   return res;
 }
 
 // common kernel function for simple loopbacks
-int loopback_kernel( void (*tx_func)(unsigned char), int txbit, unsigned char (*rx_func)(void), int rxbit, char *name, int *firstfail ) {
+int loopback_kernel( void (*tx_func)(unsigned char), int txbit, unsigned char (*rx_func)(void), int rxbit, char *name, char *testname ) {
   int res = 0;
   int i;
   unsigned int val;
   int mini_ret = 0;
   int syndrome[2] = {0, 0};
+  int checklen;
+  char msg[MSGLEN];
 
   for( i = 0; i < 100; i++ ) {
     val = i & 0x1;
@@ -521,13 +514,10 @@ int loopback_kernel( void (*tx_func)(unsigned char), int txbit, unsigned char (*
   mini_ret++;
 #endif
   if( mini_ret != 0 ) {
-    if( *firstfail ) {
-      *firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "      {\"name\":\"%s\",\n", name );
-    printf( "       \"syndrome\": {\"high\":%d, \"low\":%d, \"reps\":%d}}", syndrome[1], syndrome[0], mini_ret );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": {\"high\":%d, \"low\":%d, \"reps\":%d}}]}",
+			 name, syndrome[1], syndrome[0], mini_ret );
+    checklenf( checklen );
+    printj( testname, msg );
     res++;
   }
   tx_func(0);
@@ -535,12 +525,14 @@ int loopback_kernel( void (*tx_func)(unsigned char), int txbit, unsigned char (*
 }
 
 // second copy of above to handle the "unsigned short" case (reduce compiler warnings)
-int loopback_kernel_u16( void (*tx_func)(unsigned short), int txbit, unsigned short (*rx_func)(void), int rxbit, char *name, int *firstfail ) {
+int loopback_kernel_u16( void (*tx_func)(unsigned short), int txbit, unsigned short (*rx_func)(void), int rxbit, char *name, char *testname ) {
   int res = 0;
   int i;
   unsigned int val;
   int mini_ret = 0;
   int syndrome[2] = {0, 0};
+  int checklen;
+  char msg[MSGLEN];
 
   for( i = 0; i < 100; i++ ) {
     val = i & 0x1;
@@ -554,13 +546,10 @@ int loopback_kernel_u16( void (*tx_func)(unsigned short), int txbit, unsigned sh
   mini_ret++;
 #endif
   if( mini_ret != 0 ) {
-    if( *firstfail ) {
-      *firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "      {\"name\":\"%s\",\n", name );
-    printf( "       \"syndrome\": {\"high\":%d, \"low\":%d, \"reps\":%d}}", syndrome[1], syndrome[0], mini_ret );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": {\"high\":%d, \"low\":%d, \"reps\":%d}}]}",
+			 name, syndrome[1], syndrome[0], mini_ret );
+    checklenf( checklen );
+    printj( testname, msg );
     res++;
   }
   tx_func(0);
@@ -572,18 +561,14 @@ int loopback_kernel_u16( void (*tx_func)(unsigned short), int txbit, unsigned sh
  */
 int test_usb(void) {
   int res = 0;
-  int firstfail = 1;
   
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"USB\", \n" );
 #ifdef CSR_LOOPTEST_BASE
-  printf( "    \"failures\":[\n" );
-  res += loopback_kernel( looptest_fusb_tx_write, 0, looptest_fusb_rx_read, 0, "USB", &firstfail );
+  char testname[] = "USB";
   
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
+  res += loopback_kernel( looptest_fusb_tx_write, 0, looptest_fusb_rx_read, 0, "USB", testname );
+  
+  errcnt_macro( testname, res );
 #endif
-  printf( "    \"subtest_errcount\":%d\n  }", -1 );
   return res;
 }
 
@@ -592,28 +577,22 @@ int test_usb(void) {
  */
 int test_loopback(void) {
   int res = 0;
-  int firstfail = 1;
 
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"loopback\", \n" );
 #ifdef CSR_LOOPTEST_BASE
-  printf( "    \"failures\":[\n" );
+  char testname[] = "loopback";
 
-  res += loopback_kernel( looptest_mcu_tx_write, 0, looptest_mcu_rx_read, 0, "MCUINT", &firstfail );
-  res += loopback_kernel( looptest_sm_tx_write, 0, looptest_sm_rx_read, 0, "SM", &firstfail );
+  res += loopback_kernel( looptest_mcu_tx_write, 0, looptest_mcu_rx_read, 0, "MCUINT", testname );
+  res += loopback_kernel( looptest_sm_tx_write, 0, looptest_sm_rx_read, 0, "SM", testname );
 
   // this requires a particular wiring on the PCIe test connector, note order
-  res += loopback_kernel_u16( looptest_hax_tx_write, 8, looptest_hax_rx_read, 7, "HAX8->7", &firstfail );
-  res += loopback_kernel_u16( looptest_hax_tx_write, 1, looptest_hax_rx_read, 4, "HAX1->4", &firstfail );
-  res += loopback_kernel_u16( looptest_hax_tx_write, 9, looptest_hax_rx_read, 3, "HAX9->3", &firstfail );
-  res += loopback_kernel_u16( looptest_hax_tx_write, 0, looptest_hax_rx_read, 2, "HAX0->2", &firstfail );
-  res += loopback_kernel_u16( looptest_hax_tx_write, 6, looptest_pcie_rx_read, 1, "HAX6->WAKE", &firstfail );
-  res += loopback_kernel_u16( looptest_hax_tx_write, 5, looptest_pcie_rx_read, 0, "HAX5->PERST", &firstfail );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 8, looptest_hax_rx_read, 7, "HAX8->7", testname );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 1, looptest_hax_rx_read, 4, "HAX1->4", testname );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 9, looptest_hax_rx_read, 3, "HAX9->3", testname );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 0, looptest_hax_rx_read, 2, "HAX0->2", testname );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 6, looptest_pcie_rx_read, 1, "HAX6->WAKE", testname );
+  res += loopback_kernel_u16( looptest_hax_tx_write, 5, looptest_pcie_rx_read, 0, "HAX5->PERST", testname );
   
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
-#else
-  printf( "    \"subtest_errcount\":%d\n  }", -1 );
+  errcnt_macro( testname, res );
 #endif
   return res;
 }
@@ -625,14 +604,13 @@ int test_loopback(void) {
 int test_gtp(void) {
   int res = 0;
   int diff = 0;
-  int firstfail = 1;
-
-#ifdef CSR_GTP0_BASE
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"GTP\", \n" );
-  printf( "    \"failures\":[\n" );
-
   int i;
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "GTP";
+
+  diff = res;
+#ifdef CSR_GTP0_BASE
   // accumulate "real time" errors over about 0.5 seconds
   for( i = 0; i < GTP_ITERS; i++ ) {
     res += gtp0_rx_gtp_prbs_err_read();
@@ -640,14 +618,10 @@ int test_gtp(void) {
 #ifdef FORCERR
   res++;
 #endif
-  if( res != 0 ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"GTP0\",\n" );
-    printf( "     \"syndrome\": {\"errors\":%d, \"low\":%d, \"reps\":%d}}", res );
+  if( res - diff != 0 ) {
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP0\"},{\"errcnt\":%d}]}", res - diff );
+    checklenf( checklen );
+    printj( testname, msg );
   }
 #endif
   diff = res;
@@ -660,13 +634,9 @@ int test_gtp(void) {
   res++;
 #endif
   if( res - diff != 0 ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"GTP1\",\n" );
-    printf( "     \"syndrome\": {\"errors\":%d, \"low\":%d, \"reps\":%d}}", res - diff );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP1\"},{\"errcnt\":%d}]}", res - diff );
+    checklenf( checklen );
+    printj( testname, msg );
   }
 #endif
 
@@ -679,13 +649,9 @@ int test_gtp(void) {
   res++;
 #endif
   if( res - diff != 0 ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"GTP2\",\n" );
-    printf( "     \"syndrome\": {\"errors\":%d, \"low\":%d, \"reps\":%d}}", res - diff );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP1\"},{\"errcnt\":%d}]}", res - diff );
+    checklenf( checklen );
+    printj( testname, msg );
   }
 #endif
 
@@ -698,19 +664,13 @@ int test_gtp(void) {
   res++;
 #endif
   if( res - diff != 0 ) {
-    if( firstfail ) {
-      firstfail = 0;
-    } else {
-      printf( ",\n" );
-    }
-    printf( "    {\"name\":\"GTP3\",\n" );
-    printf( "     \"syndrome\": {\"errors\":%d, \"low\":%d, \"reps\":%d}}", res - diff );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP1\"},{\"errcnt\":%d}]}", res - diff );
+    checklenf( checklen );
+    printj( testname, msg );
   }
 #endif
   
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
-  
+  errcnt_macro( testname, res );  
   return res;
 }
 
@@ -722,96 +682,85 @@ int test_xadc(void) {
   
   double temp;
   double vccint, vccaux, vccbram;
+  char msg[MSGLEN];
+  int checklen;
+  char testname[] = "xadc";
   
-  printf( "  {\n");
-  printf( "    \"subtest_name\":\"XADC\", \n" );
-
   temp = ((double)xadc_temperature_read()) * 503.975 / 4096.0 - 273.15;
   vccint = ((double)xadc_vccint_read()) / ((double)0x555);
   vccaux = ((double)xadc_vccaux_read()) / ((double)0x555);
   vccbram = ((double)xadc_vccbram_read()) / ((double)0x555);
 
-  printf( "    \"temp\":%d.%01d, ", (int) temp, (int) (temp - (double)((int)temp)) * 10);
   if( temp < 4.0 || temp > 108.0 ) {  // temperature sensor has ~6C max error, plus give 2 deg margin
     res++;
   }
-  printf( "\"vint\":\"%d.%02d\", ", (int) vccint, (int) ((vccint - (double)((int) vccint)) * 100));
   if( vccint < (0.95 * 0.98) || vccint > (1.05 * 1.02) ) { // there's a +/-2% error on XADC readings for supplies
     res++;
   }
-  printf( "\"vaux\":\"%d.%02d\", ", (int) vccaux, (int) ((vccaux - (double)((int) vccaux)) * 100) );
   if( vccaux < (1.71 * 0.98) || vccaux > (1.89 * 1.02) ) {
     res++;
   }
-  printf( "\"vbram\":\"%d.%02d\", \n", (int) vccbram, (int) ((vccbram - (double)((int) vccbram)) * 100) );
   if( vccbram < (0.95 * 0.98) || vccbram > (1.05 * 1.02) ) {
     res++;
   }
-
-  printf( "    \"failures\":[\n" );
 #ifdef FORCERR
   res++;
 #endif
-  if( res != 0 ) {
-    printf( "    {\"name\":\"XADC\"}" );
-  }
+  
+  checklen = snprintf( msg, MSGLEN, "{\"info\": [\
+{\"temp\":%d.%01d}, \
+{\"vint\":\"%d.%02d\"}, \
+{\"vaux\":\"%d.%02d\"}, \
+{\"vbram\":\"%d.%02d\"}]}", (int) temp, (int) (temp - (double)((int)temp)) * 10,
+		       (int) vccint, (int) ((vccint - (double)((int) vccint)) * 100),
+		       (int) vccaux, (int) ((vccaux - (double)((int) vccaux)) * 100),
+		       (int) vccbram, (int) ((vccbram - (double)((int) vccbram)) * 100),
+		       res );
+  checklenf( checklen );
+  printj( testname, msg );
 
-  printf( "\n    ],\n" );
-  printf( "    \"subtest_errcount\":%d\n  }", res );
-    
+  errcnt_macro( testname, res );  
   return res;
-  }
-
+}
+ 
 int test_board(int test_number) {
   int result = 0;
 
-  printf( "var netv2tester_output = \n" );
-  printf( "{\n" );
-  printf( "  \"model\":\"NeTV2MVP\",\n" );
-  printf( "  \"dna\":\"%016llx\",\n", dna_id_read() );
-  printf( "  \"subtests\":[\n" );
-    
+  my_dna = dna_id_read();
+  uptime_service();  
+  printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"start_time\":%d }\n",
+	  model_str, rev_str, tester_ver, my_dna, uptime() );
+
   if( test_number == XADC_TEST || test_number == ALL_TESTS ) {
     result += test_xadc();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == LOOPBACK_TEST || test_number == ALL_TESTS ) {
     result += test_loopback();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == LED_TEST || test_number == ALL_TESTS ) {
     result += test_leds();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == FAN_TEST || test_number == ALL_TESTS ) {
     result += test_fan();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == USB_TEST || test_number == ALL_TESTS ) {
     result += test_usb();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == GTP_TEST || test_number == ALL_TESTS ) {
     result += test_gtp();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == VIDEO_TEST || test_number == ALL_TESTS ) {
     result += test_video();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
     result += test_sdcard();
-    if( test_number == ALL_TESTS ) printf( ",\n" );
   }
   if( test_number == MEMORY_TEST || test_number == ALL_TESTS ) {
     result += test_memory();
-    // last test has no comma for proper JSON
   }
 
-  printf( "  ],\n" );
-  if( test_number == ALL_TESTS )
-    printf( "  \"test_errcount\":%d \n}\n", result );
-
-  printf( ";\n" );
+  uptime_service();  
+  printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"end_time\":%d, \"test_errcount\":%d }\n",
+	  model_str, rev_str, tester_ver, my_dna, uptime(), result );
   return result;
 }

@@ -182,7 +182,7 @@ int test_video(void) {
   lfsr_init(1);
   for(i=0; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
     expected = transform_source(lfsr_next());
-    if( framebuffer[i] != expected ) {
+    if( framebuffer[i] != expected ) {   /// TODO: allow match that's up to one or two pixels shifted in time
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
@@ -414,6 +414,8 @@ int test_leds(void) {
       ;
     looptest_leds_write(1 << (i % 3));  
     checklen = snprintf( msg, MSGLEN, "{\"info\":{\"state\":\"pattern %d\"}}", 1 << (i % 3) );
+    checklenf( checklen );
+    printj( testname, msg );
   }
   looptest_leds_write(0);  
 

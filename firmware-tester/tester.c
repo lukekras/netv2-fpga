@@ -763,13 +763,12 @@ int test_board(int test_number) {
   uptime_service();
   printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"end_time\":%d, \"test_errcount\":%d }\n",
 	  model_str, rev_str, tester_ver, my_dna, uptime(), result );
-  
+
+  // expect tokens are for the TCL expect system to identify when the test has ended
   if( result == 0 ) {
-    printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"expect_pass\":1}\n",
-	    model_str, rev_str, tester_ver, my_dna );
+    printf( "expect_pass\n" );
   } else {
-    printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"expect_fail\":1}\n",
-	    model_str, rev_str, tester_ver, my_dna );
+    printf( "expect_fail\n" );
   }
   return result;
 }

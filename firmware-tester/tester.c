@@ -752,6 +752,7 @@ int test_board(int test_number) {
   if( test_number == VIDEO_TEST || test_number == ALL_TESTS ) {
     result += test_video();
   }
+  // Any test after SD card_test will lose its sense of "uptime" because it co-opts the only system timer for busy waits
   if( test_number == SDCARD_TEST || test_number == ALL_TESTS ) {
     result += test_sdcard();
   }
@@ -759,8 +760,16 @@ int test_board(int test_number) {
     result += test_memory();
   }
 
-  uptime_service();  
+  uptime_service();
   printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"end_time\":%d, \"test_errcount\":%d }\n",
 	  model_str, rev_str, tester_ver, my_dna, uptime(), result );
+  
+  if( result == 0 ) {
+    printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"expect_pass\":1}\n",
+	    model_str, rev_str, tester_ver, my_dna );
+  } else {
+    printf( "{ \"model\":\"%s\", \"rev\":\"%s\", \"tester_rev\":\"%s\", \"dna\":\"%lld\", \"expect_fail\":1}\n",
+	    model_str, rev_str, tester_ver, my_dna );
+  }
   return result;
 }

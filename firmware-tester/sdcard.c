@@ -733,6 +733,7 @@ int sdcard_test(unsigned int loops) {
 		checklenf( checklen );
 		printj( "SD", msg );
 	}
+	time_init(); // re-initialize time for normal operations, as sdcard breaks uptime
 
 	return errors;
 }

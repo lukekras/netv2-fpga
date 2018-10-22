@@ -2,9 +2,9 @@
 const char* board = "NeTV2";
 const char* target = "Test";
 
-const char* git_commit = "ff6176813087e19932032da95a783db78bb30fce";
+const char* git_commit = "b6a46c3fa432a6ec80196001739c871c04a08e7f";
 const char* git_branch = "tester-master";
-const char* git_describe = "v0.0-50-gff61768-dirty";
+const char* git_describe = "v0.0-51-gb6a46c3-dirty";
 const char* git_status =
     "    --\r\n"
    "     M tester.c\r\n"

@@ -182,7 +182,7 @@ int test_video(void) {
   lfsr_init(1);
   for(i=1; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) { // skip first pixel in case of "acceptable" alignment error
     expected = transform_source(lfsr_next());
-    if( (framebuffer[i] != expected) && (framebuffer[i-1] != expected) ) { 
+    if( !((framebuffer[i] != expected) ^ (framebuffer[i-1] != expected)) ) { 
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
@@ -213,7 +213,7 @@ int test_video(void) {
 #ifdef FORCERR
     expected++;
 #endif
-    if( (framebuffer[i] != expected) && (framebuffer[i-1] != expected) ) {
+    if( !((framebuffer[i] != expected) ^ (framebuffer[i-1] != expected)) ) {
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \

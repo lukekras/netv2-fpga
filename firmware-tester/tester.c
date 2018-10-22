@@ -172,7 +172,7 @@ int test_video(void) {
   
   resdiff = result;
   // clear the framebuffer so we aren't testing stale data
-  for(i=1; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
+  for(i=0; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
     framebuffer[i] = 0;
   }
   pattern_fill_framebuffer_test(VIDEO_VACTIVE, VIDEO_HACTIVE, 1);
@@ -180,15 +180,15 @@ int test_video(void) {
     ;
   
   lfsr_init(1);
-  for(i=0; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
+  for(i=1; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) { // skip first pixel in case of "acceptable" alignment error
     expected = transform_source(lfsr_next());
-    if( framebuffer[i] != expected ) {   /// TODO: allow match that's up to one or two pixels shifted in time
+    if( (framebuffer[i] != expected) && (framebuffer[i-1] != expected) ) { 
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
 {\"hdmi_in0\":\"mismatch\", \"offset\":%d, \"got\":%d, \"expected\":%d}}]}",
 			     "HDMI in0 link",
-			     i, expected, framebuffer[i] );
+			     i, framebuffer[i], expected );
 	checklenf( checklen );
 	printj( testname, msg );
 
@@ -208,18 +208,18 @@ int test_video(void) {
     ;
   
   lfsr_init(2);
-  for(i=0; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
+  for(i=1; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
     expected = transform_source(lfsr_next());
 #ifdef FORCERR
     expected++;
 #endif
-    if( framebuffer[i] != expected ) {
+    if( (framebuffer[i] != expected) && (framebuffer[i-1] != expected) ) {
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
 {\"hdmi_in1\":\"mismatch\", \"offset\":%d, \"got\":%d, \"expected\":%d}}]}",
 			     "HDMI in1 link",
-			     i, expected, framebuffer[i] );
+			     i, framebuffer[i], expected );
 	checklenf( checklen );
 	printj( testname, msg );
 
@@ -409,7 +409,7 @@ int test_leds(void) {
   
   elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/8);
 
-  for( i = 0; i < 21; i++ ) {
+  for( i = 0; i < 33; i++ ) {
     while( !elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/4) )
       ;
     looptest_leds_write(1 << (i % 3));  

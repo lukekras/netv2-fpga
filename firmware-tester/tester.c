@@ -394,7 +394,7 @@ int test_memory(void) {
 }
 
 /*
-  Visual LED test -- requires operator intervention to witness if the LEDs flash
+  Visual LED test -- requires operator intervention to witness if the LEDs flash 
  */
 int test_leds(void) {
   int res = 0;
@@ -651,7 +651,7 @@ int test_gtp(void) {
   res++;
 #endif
   if( res - diff != 0 ) {
-    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP1\"},{\"errcnt\":%d}]}", res - diff );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP2\"},{\"errcnt\":%d}]}", res - diff );
     checklenf( checklen );
     printj( testname, msg );
   }
@@ -666,7 +666,7 @@ int test_gtp(void) {
   res++;
 #endif
   if( res - diff != 0 ) {
-    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP1\"},{\"errcnt\":%d}]}", res - diff );
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP3\"},{\"errcnt\":%d}]}", res - diff );
     checklenf( checklen );
     printj( testname, msg );
   }

@@ -640,6 +640,14 @@ int test_gtp(void) {
     checklenf( checklen );
     printj( testname, msg );
   }
+
+  // if we've got more than one channel, we can assume we're using a QPLL, so check for lock
+  if( gtp0_pll_lock_read() == 0 ) {
+    res += 1;
+    checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"GTP_CLK\"},{\"errcnt\":%d}]}", res - diff );
+    checklenf( checklen );
+    printj( testname, msg );
+  }
 #endif
 
   diff = res;

@@ -168,6 +168,11 @@ _io = [
      Subsignal("n", Pins("A8"))
      ),
 
+    ("gtp_clk", 0,
+     Subsignal("clk_p", Pins("F10")),
+     Subsignal("clk_n", Pins("E10")),
+     ),
+
     ("hdmi_in", 0,
         Subsignal("clk_p", Pins("L19"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("clk_n", Pins("L20"), IOStandard("TMDS_33"), Inverted()),
@@ -1591,28 +1596,20 @@ class GtpTesterSoC(BaseSoC):
         #### GTP interfaces
         from liteiclink.transceiver.gtp_7series import GTPQuadPLL, GTP
 
-        # refclk  TODO: change to diff pair input, 100MHz
-        refclk125 = Signal()
-        refclk125_bufg = Signal()
-        pll_fb = Signal()
+        # refclk diff pair input, 100MHz
+        gtp_clk_pads = platform.request("gtp_clk", 0)
+        gtp_clk = Signal()
         self.specials += [
-            Instance("PLLE2_BASE",
-                     p_STARTUP_WAIT="FALSE",  # o_LOCKED=,
-
-                     # VCO @ 1GHz
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                     p_CLKFBOUT_MULT=35, p_DIVCLK_DIVIDE=4,
-                     i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
-
-                     # 125MHz
-                     p_CLKOUT0_DIVIDE=7, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
-                     ),
-            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
+            Instance("IBUFDS_GTE2",
+                     i_CEB=0,
+                     i_I=gtp_clk_pads.clk_p,
+                     i_IB=gtp_clk_pads.clk_n,
+                     o_O=gtp_clk,
+                     )
         ]
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
 
         # qpll
-        self.submodules.qpll = qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
+        self.submodules.qpll = qpll = GTPQuadPLL(gtp_clk, 100e6, 2.00e9)
         print(qpll)
 
         # gtp

@@ -540,6 +540,26 @@ void sdcard_decode_cid(void) {
 		);
 }
 
+void sdcard_decode_cid_json(void) {
+  char msg[MSGLEN];
+  int checklen;
+  
+  checklen = snprintf( msg, MSGLEN, "{\"info\":\
+{\"CID\":\"0x%08x%08x%08x%08x\", \"card_name\":\"%c%c%c%c%c\"}}", 
+			sdcard_response[0],
+			sdcard_response[1],
+			sdcard_response[2],
+			sdcard_response[3],
+			(sdcard_response[1] >> 24) & 0xff,
+			(sdcard_response[1] >> 16) & 0xff,
+			(sdcard_response[1] >>  8) & 0xff,
+			(sdcard_response[1] >>  0) & 0xff,
+			(sdcard_response[2] >> 24) & 0xff
+		       );
+  checklenf( checklen );
+  printj( "SD", msg );
+}
+
 void sdcard_decode_csd(void) {
 	/* FIXME: only support CSR structure version 2.0 */
 	printf(
@@ -624,6 +644,7 @@ int sdcard_init(void) {
 #ifdef SDCARD_DEBUG
 	sdcard_decode_cid();
 #endif
+	sdcard_decode_cid_json();
 
 	/* set relative card address */
 	sdcard_set_relative_address();

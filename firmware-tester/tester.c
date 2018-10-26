@@ -486,8 +486,8 @@ int test_sdcard(void) {
     printj( testname, msg );
   }
   
-  if( res == 0 )
-    res += sdcard_test(2);
+  //  if( res == 0 )
+  //    res += sdcard_test(2);
 
   errcnt_macro( testname, res );
 #endif

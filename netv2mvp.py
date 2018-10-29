@@ -134,7 +134,7 @@ _io = [
     ("hdmi_in", 0,
         Subsignal("clk_p", Pins("L19"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("clk_n", Pins("L20"), IOStandard("TMDS_33"), Inverted()),
-        Subsignal("data0_p", Pins("K21"), IOStandard("TMDS_33"), Inverted()),  # correct by design
+        Subsignal("data0_p", Pins("K21"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data0_n", Pins("K22"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data1_p", Pins("J20"), IOStandard("TMDS_33"), Inverted()),
         Subsignal("data1_n", Pins("J21"), IOStandard("TMDS_33"), Inverted()),
@@ -728,10 +728,13 @@ class VideoOverlaySoC(BaseSoC):
 
         pix_freq = 148.50e6
 
+        platform.add_source(os.path.join("overlay", "delay_controller.v"))
+        platform.add_source(os.path.join("overlay", "phsaligner.v"))
+
         ########## hdmi in 0 (raw tmds)
         hdmi_in0_pads = platform.request("hdmi_in", 0)
         self.submodules.hdmi_in0_freq = FrequencyMeter(period=self.clk_freq)
-        self.submodules.hdmi_in0 = hdmi_in0 = HDMIIn(hdmi_in0_pads, device="xc7", split_mmcm=True, hdmi=True, iodelay_clk_freq=iodelay_clk_freq)
+        self.submodules.hdmi_in0 = hdmi_in0 = HDMIIn(hdmi_in0_pads, device="xc7", split_mmcm=True, hdmi=True, iodelay_clk_freq=iodelay_clk_freq, alt_delay=True)
         self.comb += self.hdmi_in0_freq.clk.eq(self.hdmi_in0.clocking.cd_pix.clk)
         # don't add clock timings here, we add a root clock constraint that derives the rest automatically
 
@@ -801,7 +804,7 @@ class VideoOverlaySoC(BaseSoC):
                                          mode="rgb",
                                          hdmi=True,
                                          n_dma_slots=2,
-                                         iodelay_clk_freq = iodelay_clk_freq,
+                                         iodelay_clk_freq = iodelay_clk_freq
                                           )
         self.comb += self.hdmi_in1_freq.clk.eq(self.hdmi_in1.clocking.cd_pix.clk)
 

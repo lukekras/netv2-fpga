@@ -804,7 +804,8 @@ class VideoOverlaySoC(BaseSoC):
                                          mode="rgb",
                                          hdmi=True,
                                          n_dma_slots=2,
-                                         iodelay_clk_freq = iodelay_clk_freq
+                                         iodelay_clk_freq = iodelay_clk_freq,
+                                         alt_delay=True,
                                           )
         self.comb += self.hdmi_in1_freq.clk.eq(self.hdmi_in1.clocking.cd_pix.clk)
 

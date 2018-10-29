@@ -239,13 +239,13 @@ int hdmi_in0_calibrate_delays(int freq)
 
 	int iodelay_tap_duration;
 
-	if( hdmi_in0_algorithm == 0 ) {
 	if( idelay_freq == 400000000 ) {
 	  iodelay_tap_duration = 39;
 	} else {
 	  iodelay_tap_duration = 78;
 	}
-	
+
+	if( hdmi_in0_algorithm == 0 ) {
 	hdmi_in0_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
 	hdmi_in0_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
 	hdmi_in0_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
@@ -523,6 +523,22 @@ int hdmi_in0_phase_startup(int freq)
 	int attempts;
 
 	attempts = 0;
+
+	if( hdmi_in0_algorithm == 2 ) {
+	  int iodelay_tap_duration;
+	  if( idelay_freq == 400000000 ) {
+	    iodelay_tap_duration = 39;
+	  } else {
+	    iodelay_tap_duration = 78;
+	  }
+	  int bit_time;
+	  bit_time = 10000000/(freq*iodelay_tap_duration) + 1; // need to round up on fractional to cover the whole bit time
+	  printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
+	  hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
+	  hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
+	  hdmi_in0_data2_cap_eye_bit_time_write(bit_time);
+	}
+
 	if( hdmi_in0_algorithm == 0 ) {
 	while(1) {
 		attempts++;

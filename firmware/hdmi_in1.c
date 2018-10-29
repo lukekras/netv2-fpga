@@ -196,7 +196,7 @@ void hdmi_in1_init_video(int hres, int vres)
 
 #endif
 
-#if 0
+#if 1
 #ifdef CSR_HDMI_IN1_DATA0_CAP_EYE_BIT_TIME_ADDR
 	int bit_time = 18;  // 18 if you should round up, not truncate
 	printf( "hdmi_in1: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
@@ -204,10 +204,12 @@ void hdmi_in1_init_video(int hres, int vres)
 	hdmi_in1_data1_cap_eye_bit_time_write(bit_time);
 	hdmi_in1_data2_cap_eye_bit_time_write(bit_time);
 
-	hdmi_in1_data0_cap_algorithm_write(2); // 1 is just delay criteria change, 2 is auto-delay machine
-	hdmi_in1_data1_cap_algorithm_write(2);
-	hdmi_in1_data2_cap_algorithm_write(2);
-	hdmi_in1_algorithm = 2;
+	// empirically, this link does really well with variant 1 of algorithm 0; not sure why but seems quite robust
+	// SHIP IT
+	hdmi_in1_data0_cap_algorithm_write(1); // 1 is just delay criteria change, 2 is auto-delay machine
+	hdmi_in1_data1_cap_algorithm_write(1);
+	hdmi_in1_data2_cap_algorithm_write(1);
+	hdmi_in1_algorithm = 0;
 	hdmi_in1_data0_cap_auto_ctl_write(7);
 	hdmi_in1_data1_cap_auto_ctl_write(7);
 	hdmi_in1_data2_cap_auto_ctl_write(7);
@@ -386,6 +388,21 @@ int hdmi_in1_phase_startup(int freq)
 	int attempts;
 
 	attempts = 0;
+	if( hdmi_in1_algorithm == 2 ) {
+	  int iodelay_tap_duration;
+	  if( idelay_freq == 400000000 ) {
+	    iodelay_tap_duration = 39;
+	  } else {
+	    iodelay_tap_duration = 78;
+	  }
+	  int bit_time;
+	  bit_time = 10000000/(freq*iodelay_tap_duration) + 1;
+	  printf( "hdmi_in1: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
+	  hdmi_in1_data0_cap_eye_bit_time_write(bit_time);
+	  hdmi_in1_data1_cap_eye_bit_time_write(bit_time);
+	  hdmi_in1_data2_cap_eye_bit_time_write(bit_time);
+	}
+
 	if( hdmi_in1_algorithm == 0 ) {
 	while(1) {
 		attempts++;

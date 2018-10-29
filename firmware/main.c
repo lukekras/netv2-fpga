@@ -17,6 +17,7 @@
 #include "pattern.h"
 
 #include "mmcm.h"
+#include "km.h"
 
 void * __stack_chk_guard = (void *) (0xDEADBEEF);
 void __stack_chk_fail(void) {
@@ -45,11 +46,34 @@ int main(void)
 
 	ci_prompt();
 
+	int wait_event;
+	int hpd_wait = 0;
+	int waiting = 1;
+	elapsed(&wait_event, SYSTEM_CLOCK_FREQUENCY);
+	
 	hdcp_hpd_ena_write(0); // release hot plug detect once we're into the main loop
 	
 	while(1) {
 	  processor_service();
 	  ci_service();
+
+	  // put a delay of a few seconds before releasing HPD
+	  if( waiting ) {
+	    if( elapsed( &wait_event, SYSTEM_CLOCK_FREQUENCY ) ) {
+	      hpd_wait++;
+	    }
+	    if( hpd_wait > 1 ) {
+	      hdcp_hpd_ena_write(0); // release hot plug detect once we're into the main loop
+	      waiting = 0;
+	    }
+	  }
+	  
+	  if( link_redo ) {
+	    waiting = 1;
+	    hpd_wait = 0;
+	    link_redo = 0;
+	    hdcp_hpd_ena_write(1); 
+	  }
 	}
 
 	return 0;

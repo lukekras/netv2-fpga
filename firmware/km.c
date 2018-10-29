@@ -20,6 +20,8 @@ unsigned char read_hdcp(unsigned char addr) {
 
 #define DEBUG 0
 
+int link_redo = 0;
+
 void hdcp_init(void) {
   // unmask the interrupts for HDCP
   unsigned int mask;
@@ -41,7 +43,9 @@ void hdcp_isr(void) {
 
   hdcp_ev_pending_write(1);
 
-  derive_km();
+  if( derive_km() ) {
+    link_redo = 1;
+  }
   hdcp_Aksv_manual_write(1);
   
   hdcp_ev_enable_write(1);
@@ -51,7 +55,7 @@ void hdcp_isr(void) {
   
 }
 
-void derive_km(void) {
+int derive_km(void) {
     unsigned int num;
     int i;
     
@@ -128,13 +132,13 @@ void derive_km(void) {
 
     if( Km != Kmp ) {
       wprintf( "Km is not equal to Km', can't encrypt this stream.\n" );
-      return;
+      return 1;
     }
 
     if( Km == 0 ) {
       wprintf( "Km is zero. This probably means derive_km was fired spuriously on disconnect.\n" );
       wprintf( "Aborting without doing anything, since Km = 0 is never a correct condition\n" );
-      return;
+      return 1;
     } else {
 #if DEBUG
       wprintf( "Committing Km\n" );
@@ -195,4 +199,6 @@ void derive_km(void) {
     wprintf( "Releasing HPD\n" );
     hdcp_hpd_ena_write(0);
 #endif
+    
+    return 0;
 }

@@ -23,7 +23,7 @@
 static long long my_dna = 0LL;
 static char model_str[] = "NeTV2MVP";
 static char rev_str[] = "PVT1C";
-static char tester_ver[] = "1";
+static char tester_ver[] = "1.1";
 
 void checklenf( int checklen ) {
   if(checklen >= MSGLEN-1)

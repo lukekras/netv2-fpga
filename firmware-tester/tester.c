@@ -185,7 +185,7 @@ int test_video(void) {
   int j;
   for(i=search_depth; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) { // skip first search_depth pixels in case of "acceptable" alignment error
     expected = transform_source(lfsr_next());
-    for( j = 0, match_count = 0; j < search_depth; j ++ ) {
+    for( j = 0, match_count = 0; j <= search_depth; j ++ ) {
       if( framebuffer[i-j] == expected )
 	match_count++;
     }
@@ -220,7 +220,7 @@ int test_video(void) {
 #ifdef FORCERR
     expected++;
 #endif
-    for( j = 0, match_count = 0; j < search_depth; j ++ ) {
+    for( j = 0, match_count = 0; j <= search_depth; j ++ ) {
       if( framebuffer[i-j] == expected )
 	match_count++;
     }

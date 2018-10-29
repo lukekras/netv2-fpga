@@ -3,6 +3,7 @@
 
 extern int hdmi_in0_debug;
 extern int hdmi_in0_fb_index;
+extern int hdmi_in0_algorithm;
 
 unsigned int hdmi_in0_framebuffer_base(char n);
 

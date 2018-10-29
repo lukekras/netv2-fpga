@@ -935,6 +935,36 @@ void ci_service(void)
 		  int chan = strtol(get_token(&str), NULL, 0);
 		  int amount = strtol(get_token(&str), NULL, 0);
 		  hdmi_in0_nudge_eye(chan, amount);
+		} else if(strcmp(token, "filt") == 0 ) {
+		  int mult = strtol(get_token(&str), NULL, 0);
+		  int bw = strtol(get_token(&str), NULL, 0);
+		  set_mmcm0_filt( mult, bw );
+		} else if(strcmp(token, "algo") == 0) {
+		  int bit_time = strtol(get_token(&str), NULL, 0);
+		  hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
+		  hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
+		  hdmi_in0_data2_cap_eye_bit_time_write(bit_time);
+		  
+		  hdmi_in0_data0_cap_algorithm_write(2); // 1 is just delay criteria change, 2 is auto-delay machine
+		  hdmi_in0_data1_cap_algorithm_write(2);
+		  hdmi_in0_data2_cap_algorithm_write(2);
+		  hdmi_in0_algorithm = 2;
+		  hdmi_in0_data0_cap_auto_ctl_write(7);
+		  hdmi_in0_data1_cap_auto_ctl_write(7);
+		  hdmi_in0_data2_cap_auto_ctl_write(7);
+		} else if(strcmp(token, "freeze") == 0 ) {
+		  hdmi_in0_data0_cap_auto_ctl_write(0);
+		  hdmi_in0_data1_cap_auto_ctl_write(0);
+		  hdmi_in0_data2_cap_auto_ctl_write(0);
+		} else if(strcmp(token, "thaw") == 0 ) {
+		  hdmi_in0_data0_cap_auto_ctl_write(3);
+		  hdmi_in0_data1_cap_auto_ctl_write(3);
+		  hdmi_in0_data2_cap_auto_ctl_write(3);
+		} else if(strcmp(token, "orig") == 0 ) {
+		  hdmi_in0_data0_cap_algorithm_write(0);  // go back to the original algorithm
+		  hdmi_in0_data1_cap_algorithm_write(0);
+		  hdmi_in0_data2_cap_algorithm_write(0);
+		  hdmi_in0_algorithm = 0;
 		} else if(strcmp(token, "setrect") == 0 ) {
 		  const struct video_timing *m = &video_modes[12];
 		  m = &video_modes[12];

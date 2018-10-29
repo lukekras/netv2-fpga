@@ -165,6 +165,7 @@ void hdmi_in1_isr(void)
 
 static int hdmi_in1_connected;
 static int hdmi_in1_locked;
+int hdmi_in1_algorithm = 0;
 
 void hdmi_in1_init_video(int hres, int vres)
 {
@@ -194,6 +195,26 @@ void hdmi_in1_init_video(int hres, int vres)
 	irq_setmask(mask);
 
 #endif
+
+#if 0
+#ifdef CSR_HDMI_IN1_DATA0_CAP_EYE_BIT_TIME_ADDR
+	int bit_time = 18;  // 18 if you should round up, not truncate
+	printf( "hdmi_in1: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
+	hdmi_in1_data0_cap_eye_bit_time_write(bit_time);
+	hdmi_in1_data1_cap_eye_bit_time_write(bit_time);
+	hdmi_in1_data2_cap_eye_bit_time_write(bit_time);
+
+	hdmi_in1_data0_cap_algorithm_write(2); // 1 is just delay criteria change, 2 is auto-delay machine
+	hdmi_in1_data1_cap_algorithm_write(2);
+	hdmi_in1_data2_cap_algorithm_write(2);
+	hdmi_in1_algorithm = 2;
+	hdmi_in1_data0_cap_auto_ctl_write(7);
+	hdmi_in1_data1_cap_auto_ctl_write(7);
+	hdmi_in1_data2_cap_auto_ctl_write(7);
+#endif
+#endif
+	
+	
 }
 
 void hdmi_in1_disable(void)
@@ -229,8 +250,11 @@ void hdmi_in1_print_status(void)
 	hdmi_in1_data0_wer_update_write(1);
 	hdmi_in1_data1_wer_update_write(1);
 	hdmi_in1_data2_wer_update_write(1);
-	printf("hdmi_in1: ph:%4d %4d %4d // charsync:%d%d%d [%d %d %d] // WER:%3d %3d %3d // chansync:%d // res:%dx%d\r\n",
-		hdmi_in1_d0, hdmi_in1_d1, hdmi_in1_d2,
+	printf("hdmi_in1: ph:%4d(%2d/%2d)%02x %4d(%2d/%2d)%02x %4d(%2d/%2d)%02x // charsync:%d%d%d [%d %d %d] // WER:%3d %3d %3d // chansync:%d // res:%dx%d\r\n",
+	       hdmi_in1_d0, hdmi_in1_data0_cap_cntvalueout_m_read(), hdmi_in1_data0_cap_cntvalueout_s_read(), hdmi_in1_data0_cap_lateness_read(),
+	       hdmi_in1_d1, hdmi_in1_data1_cap_cntvalueout_m_read(), hdmi_in1_data1_cap_cntvalueout_s_read(), hdmi_in1_data1_cap_lateness_read(),
+	       hdmi_in1_d2, hdmi_in1_data2_cap_cntvalueout_m_read(), hdmi_in1_data2_cap_cntvalueout_s_read(), hdmi_in1_data2_cap_lateness_read(),
+	        
 		hdmi_in1_data0_charsync_char_synced_read(),
 		hdmi_in1_data1_charsync_char_synced_read(),
 		hdmi_in1_data2_charsync_char_synced_read(),
@@ -250,6 +274,7 @@ int hdmi_in1_calibrate_delays(int freq)
 	int i, phase_detector_delay;
 	int iodelay_tap_duration;
 
+	if( hdmi_in1_algorithm == 0 ) {
 	if( idelay_freq == 400000000 ) {
 	  iodelay_tap_duration = 39;
 	} else {
@@ -268,12 +293,14 @@ int hdmi_in1_calibrate_delays(int freq)
 	  (78 ps taps on 7-series) */
 	// 148.5 pixclk * 10 = 1485MHz bitrate = 0.673ns window
 	// 10e6/(2*freq*39) = 8 = 312 ps delay
-	phase_detector_delay = 10000000/(2*freq*iodelay_tap_duration) + 3; // <<<< why is this +3 necessary?
+	// TODO: VALIDATE /4 SETTING
+	phase_detector_delay = 10000000/(4*freq*iodelay_tap_duration);
 	printf("HDMI in1 calibrate delays @ %dMHz, %d taps\n", freq, phase_detector_delay);
 	for(i=0; i<phase_detector_delay; i++) {
 		hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 		hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 		hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
+	}
 	}
 	return 1;
 }
@@ -336,6 +363,7 @@ int hdmi_in1_init_phase(void)
 	int o_d0, o_d1, o_d2;
 	int i, j;
 
+        if( hdmi_in1_algorithm == 0 ) { 
 	for(i=0;i<100;i++) {
 		o_d0 = hdmi_in1_d0;
 		o_d1 = hdmi_in1_d1;
@@ -348,6 +376,7 @@ int hdmi_in1_init_phase(void)
 		if((abs(hdmi_in1_d0 - o_d0) < 4) && (abs(hdmi_in1_d1 - o_d1) < 4) && (abs(hdmi_in1_d2 - o_d2) < 4))
 			return 1;
 	}
+	}
 	return 0;
 }
 
@@ -357,6 +386,7 @@ int hdmi_in1_phase_startup(int freq)
 	int attempts;
 
 	attempts = 0;
+	if( hdmi_in1_algorithm == 0 ) {
 	while(1) {
 		attempts++;
 		hdmi_in1_calibrate_delays(freq);
@@ -375,6 +405,7 @@ int hdmi_in1_phase_startup(int freq)
 				return 0;
 			}
 		}
+	}
 	}
 }
 
@@ -475,6 +506,7 @@ void hdmi_in1_service(int freq)
 		  if(hdmi_in1_debug)
 		    hdmi_in1_print_status();
 		  if(hdmi_in1_get_wer() >= HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD)
+		    if( hdmi_in1_algorithm == 0 )
 		    hdmi_in1_adjust_phase();
 		}
 	      } else {

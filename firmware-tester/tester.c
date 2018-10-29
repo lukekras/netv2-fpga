@@ -180,9 +180,16 @@ int test_video(void) {
     ;
   
   lfsr_init(1);
-  for(i=1; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) { // skip first pixel in case of "acceptable" alignment error
+  int match_count = 0;
+  int search_depth = 3;
+  int j;
+  for(i=search_depth; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) { // skip first search_depth pixels in case of "acceptable" alignment error
     expected = transform_source(lfsr_next());
-    if( !((framebuffer[i] != expected) ^ (framebuffer[i-1] != expected)) ) { 
+    for( j = 0, match_count = 0; j < search_depth; j ++ ) {
+      if( framebuffer[i-j] == expected )
+	match_count++;
+    }
+    if( match_count != 1 ) { 
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \
@@ -208,12 +215,16 @@ int test_video(void) {
     ;
   
   lfsr_init(2);
-  for(i=1; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
+  for(i=search_depth; i<VIDEO_HACTIVE*VIDEO_VACTIVE*2/4; i++) {
     expected = transform_source(lfsr_next());
 #ifdef FORCERR
     expected++;
 #endif
-    if( !((framebuffer[i] != expected) ^ (framebuffer[i-1] != expected)) ) {
+    for( j = 0, match_count = 0; j < search_depth; j ++ ) {
+      if( framebuffer[i-j] == expected )
+	match_count++;
+    }
+    if( match_count != 1 ) { 
       result++;
       if( num_err_printed < ERR_PRINT_LIMIT ) {
 	checklen = snprintf( msg, MSGLEN, "{\"error\":[{\"name\":\"%s\"},{\"syndrome\": \

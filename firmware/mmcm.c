@@ -735,3 +735,96 @@ void mmcm_dump(void)
 #endif
 	
 }
+
+
+// This function takes the divide value and the bandwidth setting of the MMCM
+//  and outputs the digital filter settings necessary.
+//  "divide" is ironically, the CLK_FBOUT_MULT number that goes into the PLL. 
+int mmcm_filter_lookup( int divide, int bandwidth ) {
+  int filter_lookup;
+  
+  // CP_RES_LFHF
+  int lookup_low[64] = {188, 188, 188, 188, 156, 172, 180, 140,
+			148, 148, 164, 184, 184, 184, 184, 132,
+			132, 132, 152, 152, 152, 152, 152, 152,
+			152, 168, 168, 168, 168, 168, 176, 176,
+			176, 176, 176, 176, 176, 176, 176, 176,
+			176, 176, 176, 176, 176, 176, 176, 136,
+			136, 136, 136, 136, 136, 136, 136, 136,
+			136, 136, 136, 136, 136, 136, 136, 136};
+
+
+  // CP_RES_LFHF
+  int lookup_high[64] = {188, 316, 364, 476, 860, 940, 948, 972,
+			 916, 980, 996, 836, 996, 996, 996, 996,
+			 980, 980, 772, 772, 772, 368, 368, 368,
+			 368, 208, 208, 208, 208, 208, 208, 208,
+			 208, 208, 208, 208, 208, 208, 208, 208,
+			 208, 160, 160, 160, 160, 160, 452, 452,
+			 304, 304, 304, 304, 388, 388, 344, 344,
+			 344, 144, 144, 144, 144, 296, 240, 240};
+
+  if( bandwidth == 0 ) {
+    // Set lookup_entry with the explicit bits from lookup with a part select
+    // Low Bandwidth
+    filter_lookup = lookup_low[ 64 - divide ];
+  } else {
+    filter_lookup = lookup_high[ 64 - divide ];
+  }
+
+  return filter_lookup;
+}
+
+int lock_bit_4e( int digital_filt, int prev_val ) {
+  return  (0x66FF & prev_val) |
+    ((digital_filt & (1 << 9)) >> 9) << 15 |
+    ((digital_filt & (3 << 7)) >> 7) << 11 |
+    ((digital_filt & (1 << 6)) >> 6) << 8;
+}
+
+int lock_bit_4f( int digital_filt, int prev_val ) {
+  return (0x666F & prev_val) |
+    ((digital_filt & (1 << 5)) >> 5) << 15 |
+    ((digital_filt & (3 << 3)) >> 3) << 11 |
+    ((digital_filt & (3 << 1)) >> 1) << 7 |
+    ((digital_filt & (1 << 0)) >> 0) << 4;
+}
+
+void set_mmcm0_filt( int mult, int bw ) {
+  int filter_val;
+  int prev_val;
+  int new_val;
+  int hdmi0_mmcm_opt[MTE] = {0x28, 0xffff, 0x9, 0x80, 0x8, 0x1083, 0xa, 0x1082, 0xb, 0x0, 0xc, 0x1041,
+			     0xd, 0x40, 0xe, 0x41, 0xf, 0x40, 0x10, 0x41, 0x11, 0x40, 0x6, 0x41, 0x7, 0x40,
+			     0x12, 0x41, 0x13, 0x40, 0x16, 0x1041, 0x14, 0x1083, 0x15, 0x80,
+			     0x18, 0x3e8, 0x19, 0x3801, 0x1a, 0xbbe9, 0x4e, 0x9108, 0x4f, 0x1900};
+  
+  if( (mult > 64) || (mult < 1) ) {
+    printf( "mmcm0_filt: invalid mult %d\n", mult );
+    return;
+  }
+
+  filter_val = mmcm_filter_lookup( mult, bw > 0 ? 1 : 0 );
+
+  printf( "filter_val: %x\n", filter_val );
+  prev_val = hdmi_in0_clocking_mmcm_read( 0x4e );
+  printf( "mmcm0_filt: %04x was in 0x4e\n", prev_val );
+  new_val = lock_bit_4e( filter_val, prev_val );
+  printf( "mmcm0_filt: writing %04x to 0x4e\n", new_val );
+  hdmi0_mmcm_opt[43] = new_val;
+
+
+  prev_val = hdmi_in0_clocking_mmcm_read( 0x4f );
+  printf( "mmcm0_filt: %04x was in 0x4f\n", prev_val );
+  new_val = lock_bit_4f( filter_val, prev_val );
+  printf( "mmcm0_filt: writing %04x to 0x4f\n", new_val );
+  hdmi_in0_clocking_mmcm_write(0x4f, new_val);
+  hdmi0_mmcm_opt[45] = new_val;
+
+  // write the whole table in anew
+  int i;
+  for( i = 0; i < MTE; i += 2 ) {
+    hdmi_in0_clocking_mmcm_write(hdmi0_mmcm_opt[i], hdmi0_mmcm_opt[i+1]);
+  }
+ 
+}

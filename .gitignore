@@ -10,3 +10,8 @@ build
 .vscode
 test/analyzer.csv
 test/csr.csv
+.idea/
+__pycache__/
+pycharm.env
+*.upl
+*.vcd

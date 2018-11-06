@@ -145,7 +145,7 @@ _io = [
         Subsignal("hpd_notif", Pins("U17"), IOStandard("LVCMOS33"), Inverted()),  # HDMI_HPD_LL_N (note active low)
     ),
 
-    # using normal HDMI cable
+    # Use this block if connecting a normal HDMI cable to the overlay port
     # ("hdmi_in", 1,
     #     Subsignal("clk_p", Pins("Y18"), IOStandard("TMDS_33"), Inverted()),
     #     Subsignal("clk_n", Pins("Y19"), IOStandard("TMDS_33"), Inverted()),
@@ -159,7 +159,8 @@ _io = [
     #     Subsignal("sda", Pins("R17"), IOStandard("LVCMOS33")),
     # ),
 
-    # using inverting jumper cable
+    # Use this block if connecting the M2M jumper to the Raspberry Pi
+    # All pairs inverted to simplify/clean-up routing between the two boards
     ("hdmi_in", 1,
      Subsignal("clk_p", Pins("Y18"), IOStandard("TMDS_33")),
      Subsignal("clk_n", Pins("Y19"), IOStandard("TMDS_33")),
@@ -269,10 +270,6 @@ class Platform(XilinxPlatform):
              "-loadbit \"up 0x0 {build_name}.bit\" -file {build_name}.bin"]
         self.programmer = programmer
 
-#        self.add_platform_command("""
-#create_clock -name pcie_phy_clk -period 10.0 [get_pins {{pcie_phy/pcie_support_i/pcie_i/inst/inst/gt_top_i/pipe_wrapper_i/pipe_lane[0].gt_wrapper_i/gtp_channel.gtpe2_channel_i/TXOUTCLK}}]
-#""")
-
     def create_programmer(self):
         if self.programmer == "vivado":
             return VivadoProgrammer(flash_part="n25q128-3.3v-spi-x1_x2_x4")
@@ -301,7 +298,6 @@ class CRG(Module):
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_clk200 = ClockDomain()
-#        self.clock_domains.cd_clk100 = ClockDomain()
         self.clock_domains.cd_eth = ClockDomain()
 
         clk50 = platform.request("clk50")
@@ -588,11 +584,6 @@ class HDCP(Module, AutoCSR):
         # synchronize Aksv14_auto into sysclock domain
         Aksv14_sys = Signal()
         self.specials += MultiReg(self.Aksv14_write_level, Aksv14_sys)
-        #Aksv14_sys_r = Signal()
-        #self.sync += Aksv14_sys_r.eq(Aksv14_sys)
-        #self.Aksv14_sys_pulse = Aksv14_sys_pulse = Signal()
-        # derive a pulse to drive the interrupt line when this happens
-        #self.sync += Aksv14_sys_pulse.eq(Aksv14_sys & ~Aksv14_sys_r)
         self.comb += self.ev.aksv.trigger.eq(Aksv14_sys)  # convert this to EventSourcePulse so pulse converter redundant
 
         self.Aksv14_auto = Signal()
@@ -989,9 +980,6 @@ class VideoOverlaySoC(BaseSoC):
 
         self.comb += platform.request("fpga_led2", 0).eq(self.hdmi_in0.clocking.locked)  # RX0 green
         self.comb += platform.request("fpga_led3", 0).eq(0)  # RX0 red
-#        self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
-#        self.sync += platform.request("fpga_led4", 0).eq(hdcp.debug.storage)  # connect for GPIO debug (toggling like mad)
-#        self.comb += platform.request("fpga_led5", 0).eq(self.hdmi_in1.clocking.locked)  # OV0 green
 
         # set an internal LED color based on the FPGA type installed -- for quick factory determination of PCB type (FPGA P/N covered by heatsink)
         if part == "35": # green if 35T

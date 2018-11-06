@@ -154,7 +154,7 @@ void hdmi_in0_init_video(int hres, int vres)
 #endif
 
 #ifdef CSR_HDMI_IN0_DATA0_CAP_EYE_BIT_TIME_ADDR
-	int bit_time = 18;  // 18 if you should round up, not truncate
+	int bit_time = 18 + 1;  // 18 if you should round up, not truncate
 	printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
@@ -532,7 +532,7 @@ int hdmi_in0_phase_startup(int freq)
 	    iodelay_tap_duration = 78;
 	  }
 	  int bit_time;
-	  bit_time = 10000000/(freq*iodelay_tap_duration) + 1; // need to round up on fractional to cover the whole bit time
+	  bit_time = 10000000/(freq*iodelay_tap_duration) + 2; // need to round up on fractional to cover the whole bit time
 	  printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	  hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	  hdmi_in0_data1_cap_eye_bit_time_write(bit_time);

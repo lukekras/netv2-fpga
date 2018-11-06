@@ -674,7 +674,7 @@ void init_rect(int mode) {
   
   hdmi_core_out0_initiator_length_write(m->h_active*m->v_active*4);
 
-  int h_margin = 15;
+  int h_margin = 32;
   int v_margin = 10;
   int rect_thresh = 20; // reasonable for magic mirror use, which is mostly a black UI
   rectangle_hrect_start_write(h_margin);

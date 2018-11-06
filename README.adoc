@@ -140,3 +140,6 @@ Visual Studio Code needs to know where modules are.  These are specified in envi
 ```sh
 $ python ./netv2mvp.py --lx-print-env > .env
 ```
+
+## Production scripts ##
+There's a number of scripts used to assist with integration into the Raspberry Pi runtime environment. They are all located in https://github.com/alphamaxmedia/netv2mvp-scripts/. In this location, you'll find the scripts that do the one-click update, openocd manipulation of bitstream and SPI ROM, publishing of status info to JSON feed, and Magic Mirror config info. This repository is just for the FPGA design.

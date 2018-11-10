@@ -2,12 +2,13 @@
 const char* board = "NeTV2";
 const char* target = "Test";
 
-const char* git_commit = "c72f2a5888a36a6583d1e8620a2c829415655d3f";
+const char* git_commit = "2cbb1a4f6ee99a60313b2a441c7c76bc7719d261";
 const char* git_branch = "tester-master";
-const char* git_describe = "v0.0-63-gc72f2a5-dirty";
+const char* git_describe = "v0.0-64-g2cbb1a4-dirty";
 const char* git_status =
     "    --\r\n"
    "     M version_data.c\r\n"
+   "     M ../netv2mvp.py\r\n"
    "     M ../tester-images/gtptester-100.bit\r\n"
    "     M ../tester-images/gtptester-35.bit\r\n"
    "     M ../tester-images/gtptester-firmware.bin\r\n"

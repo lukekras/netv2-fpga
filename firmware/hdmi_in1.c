@@ -33,7 +33,7 @@ int hdmi_in1_fb_index = 0;
 //#define CLEAN_COMMUTATION
 #define DEBUG
 
-#define HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD 10
+#define HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD 1
 
 unsigned int hdmi_in1_framebuffer_base(char n) {
 	return HDMI_IN1_FRAMEBUFFERS_BASE + n*HDMI_IN1_FRAMEBUFFERS_SIZE;
@@ -271,6 +271,16 @@ void hdmi_in1_print_status(void)
 		hdmi_in1_resdetection_vres_read());
 }
 
+static int hdmi_in1_eye[3];
+static int hdmi_in1_phase_target;
+
+void hdmi_in1_update_eye() {
+  // increasing the delta between master and slave pushes the master farther from the transition point
+  hdmi_in1_eye[0] = hdmi_in1_data0_cap_cntvalueout_s_read() - hdmi_in1_data0_cap_cntvalueout_m_read();
+  hdmi_in1_eye[1] = hdmi_in1_data1_cap_cntvalueout_s_read() - hdmi_in1_data1_cap_cntvalueout_m_read();
+  hdmi_in1_eye[2] = hdmi_in1_data2_cap_cntvalueout_s_read() - hdmi_in1_data2_cap_cntvalueout_m_read();
+}
+
 int hdmi_in1_calibrate_delays(int freq)
 {
 	int i, phase_detector_delay;
@@ -303,8 +313,68 @@ int hdmi_in1_calibrate_delays(int freq)
 		hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 		hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_SLAVE_INC);
 	}
+	hdmi_in1_update_eye();
 	}
 	return 1;
+}
+
+// it doesn't make sense to let the delay controller wrap around
+// you're trying to control the distance between master and slave,
+// and 31 taps * 39ps = 2356 ps, but the bit period is 673ps @ 1080p
+// so that's 3.5 bit periods per delay sweep; when the delay wraps around
+// to zero on the slave, you end up trying to align to data that's several
+// cycles old
+#define WRAP_LIMIT 17
+void hdmi_in1_fixup_eye() {
+  int wrap_amount;
+  int i;
+  int delay;
+
+  delay = hdmi_in1_data0_cap_cntvalueout_m_read();
+  if( (delay > WRAP_LIMIT) && (delay != 31) ) {
+    for (i=0; i < delay; i++) {
+      hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_DEC |
+				       DVISAMPLER_DELAY_SLAVE_DEC);
+      hdmi_in1_d0--;
+    }
+  } else if( delay == 31 ) {
+    for(i=0; i < (WRAP_LIMIT); i++ ) {
+      hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_INC |
+				       DVISAMPLER_DELAY_SLAVE_INC);
+      hdmi_in1_d0++;
+    }
+  }
+
+  delay = hdmi_in1_data1_cap_cntvalueout_m_read();
+  if( (delay > WRAP_LIMIT) && (delay != 31) ) {
+    for (i=0; i < delay; i++) {
+      hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_DEC |
+				       DVISAMPLER_DELAY_SLAVE_DEC);
+      hdmi_in1_d1--;
+    }
+  } else if( delay == 31 ) {
+    for(i=0; i < (WRAP_LIMIT); i++ ) {
+      hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_INC |
+				       DVISAMPLER_DELAY_SLAVE_INC);
+      hdmi_in1_d1++;
+    }
+  }
+
+  delay = hdmi_in1_data2_cap_cntvalueout_m_read();
+  if( (delay > WRAP_LIMIT) && (delay != 31) ) {
+    for (i=0; i < delay; i++) {
+      hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_DEC |
+				       DVISAMPLER_DELAY_SLAVE_DEC);
+      hdmi_in1_d2--;
+    }
+  } else if( delay == 31 ) {
+    for(i=0; i < (WRAP_LIMIT); i++ ) {
+      hdmi_in1_data2_cap_dly_ctl_write(DVISAMPLER_DELAY_MASTER_INC |
+				       DVISAMPLER_DELAY_SLAVE_INC);
+      hdmi_in1_d2++;
+    }
+  }
+  
 }
 
 int hdmi_in1_adjust_phase(void)
@@ -351,6 +421,10 @@ int hdmi_in1_adjust_phase(void)
 			hdmi_in1_data2_cap_phase_reset_write(1);
 			break;
 	}
+	
+	hdmi_in1_fixup_eye();
+	hdmi_in1_update_eye();
+	
 	return 1;
 }
 
@@ -516,7 +590,7 @@ void hdmi_in1_service(int freq)
 	    if(hdmi_in1_locked) {
 	      if(hdmi_in1_clocking_locked_filtered()) {
 		//		service_dma();
-		if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/4)) {
+		if(elapsed(&last_event, SYSTEM_CLOCK_FREQUENCY/8)) {
 		  hdmi_in1_data0_wer_update_write(1);
 		  hdmi_in1_data1_wer_update_write(1);
 		  hdmi_in1_data2_wer_update_write(1);

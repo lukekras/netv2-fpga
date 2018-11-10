@@ -477,7 +477,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
-        self.ddrphy.settings.add_electrical_settings(rtt_nom='60ohm', rtt_wr='disabled', ron='40ohm') 
+        self.ddrphy.settings.add_electrical_settings(rtt_nom='60ohm', rtt_wr='disabled', ron='40ohm')
         self.add_constant("IDELAYCTRL_CLOCK_FREQUENCY", int(iodelay_clk_freq))
         sdram_module = K4B2G1646FBCK0(self.clk_freq, "1:4", speedgrade='1600')
         self.add_constant("READ_LEVELING_BITSLIP", 3)

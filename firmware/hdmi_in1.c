@@ -324,7 +324,7 @@ int hdmi_in1_calibrate_delays(int freq)
 // so that's 3.5 bit periods per delay sweep; when the delay wraps around
 // to zero on the slave, you end up trying to align to data that's several
 // cycles old
-#define WRAP_LIMIT 17
+#define WRAP_LIMIT 18
 void hdmi_in1_fixup_eye() {
   int wrap_amount;
   int i;
@@ -577,6 +577,7 @@ void service_dma(void) {
 void hdmi_in1_service(int freq)
 {
 	static int last_event;
+	static int ticks_unconverged = 0;
 
 	if(hdmi_in1_connected) {
 	  if(!hdmi_in1_edid_hpd_notif_read()) {
@@ -596,9 +597,19 @@ void hdmi_in1_service(int freq)
 		  hdmi_in1_data2_wer_update_write(1);
 		  if(hdmi_in1_debug)
 		    hdmi_in1_print_status();
-		  if(hdmi_in1_get_wer() >= HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD)
-		    if( hdmi_in1_algorithm == 0 )
-		    hdmi_in1_adjust_phase();
+		  if(hdmi_in1_get_wer() >= HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD) {
+		    if( hdmi_in1_algorithm == 0 ) {
+		      hdmi_in1_adjust_phase();
+		      ticks_unconverged++;
+		      if( ticks_unconverged > 32 ) {
+			ticks_unconverged = 0;
+			printf("hdmi_in1: kick!\r\n");
+			hdmi_in1_phase_startup(freq); // kick the link if it gets stuck in a loop for a few seconds
+		      }
+		    }
+		  } else {
+		    ticks_unconverged = 0;
+		  }
 		}
 	      } else {
 		if(hdmi_in1_debug)

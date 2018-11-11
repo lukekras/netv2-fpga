@@ -601,7 +601,7 @@ void hdmi_in1_service(int freq)
 		    if( hdmi_in1_algorithm == 0 ) {
 		      hdmi_in1_adjust_phase();
 		      ticks_unconverged++;
-		      if( ticks_unconverged > 32 ) {
+		      if( ticks_unconverged > 40 ) { // enough iterations to sweep the space roughly twice
 			ticks_unconverged = 0;
 			printf("hdmi_in1: kick!\r\n");
 			hdmi_in1_phase_startup(freq); // kick the link if it gets stuck in a loop for a few seconds

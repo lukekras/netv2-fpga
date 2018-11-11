@@ -1678,6 +1678,38 @@ class GtpTesterSoC(BaseSoC):
             "create_clock -name clk50 -period 20.0 [get_nets clk50]")
 
 
+class RamTesterSoC(BaseSoC):
+
+    def __init__(self, platform, part, *args, **kwargs):
+        BaseSoC.__init__(self, platform, *args, **kwargs)
+
+        self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan on
+        if part == "35":  # green if 35T
+            self.comb += platform.request("fpga_led4", 0).eq(0)  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(1)  # OV0 green
+        else:  # red if 100T
+            self.comb += platform.request("fpga_led4", 0).eq(1)  # OV0 red
+            self.comb += platform.request("fpga_led5", 0).eq(0)  # OV0 green
+
+        self.led_out = Signal()
+        led_counter = Signal(32)
+        self.sync += led_counter.eq(led_counter + 1)
+        self.comb += self.led_out.eq(led_counter[26])
+
+        self.comb += [
+            platform.request("fpga_led0", 0).eq(self.led_out),
+            platform.request("fpga_led1", 0).eq(self.led_out),
+            platform.request("fpga_led2", 0).eq(self.led_out),
+            platform.request("fpga_led3", 0).eq(self.led_out),
+        ]
+
+        # instantiate fundamental clocks -- Vivado will derive the rest via PLL programmings
+        self.platform.add_platform_command(
+            "create_clock -name clk50 -period 20.0 [get_nets clk50]")
+
+        self.add_constant("TRY_RTT_COMBOS", 1) # change the way the BIOS compiles so we don't try the boot sequence but instead sweep RTT combos
+
+
 def main():
     if os.environ['PYTHONHASHSEED'] != "1":
         print( "PYTHONHASHEED must be set to 1 for consistent validation results. Failing to set this results in non-deterministic compilation results")
@@ -1688,7 +1720,7 @@ def main():
         "-p", "--part", help="specify which FPGA part to build for", choices=["35", "50", "100"], default="35"
     )
     parser.add_argument(
-        "-t", "--target", help="which FPGA environment to build for", choices=["base", "video_overlay", "tester", "gtptester"], default="video_overlay"
+        "-t", "--target", help="which FPGA environment to build for", choices=["base", "video_overlay", "tester", "gtptester", "ddrdebug"], default="video_overlay"
     )
     args = parser.parse_args()
 
@@ -1701,6 +1733,8 @@ def main():
         soc = TesterSoC(platform, part=args.part)
     elif args.target == "gtptester":
         soc = GtpTesterSoC(platform, part=args.part)
+    elif args.target == "ddrdebug":
+        soc = RamTesterSoC(platform, part=args.part)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)

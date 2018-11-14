@@ -81,7 +81,7 @@ _io = [
         Subsignal("ras_n", Pins("Y9"), IOStandard("SSTL15_R")),
         Subsignal("cas_n", Pins("Y7"), IOStandard("SSTL15_R")),
         Subsignal("we_n", Pins("V8"), IOStandard("SSTL15_R")),
-        Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15_R")),
+        Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT60")),
         Subsignal("dq", Pins(
             "C2 F1 B1 F3 A1 D2 B2 E2 "
             "J5 H3 K1 H2 J1 G2 H5 G3 "
@@ -89,9 +89,9 @@ _io = [
             "K3 M2 K4 M3 J6 L5 J4 K6 "
             ),
             IOStandard("SSTL15_R"),
-            Misc("IN_TERM=UNTUNED_SPLIT_50")),
-        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R")),
-        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R")),
+            Misc("IN_TERM=UNTUNED_SPLIT_60")),
+        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT60")),
+        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT60")),
         Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("cke", Pins("Y8"), IOStandard("SSTL15_R")),
@@ -540,10 +540,10 @@ class BaseSoC(SoCSDRAM):
     }
     mem_map.update(SoCSDRAM.mem_map)
 
-    def __init__(self, platform, spiflash="spiflash_1x", **kwargs):
+    def __init__(self, platform, rom_size=0x5000, spiflash="spiflash_1x", **kwargs):
         clk_freq = int(100e6)
         SoCSDRAM.__init__(self, platform, clk_freq,
-            integrated_rom_size=0x5000,
+            integrated_rom_size=rom_size,
             integrated_sram_size=0x4000,
             ident="NeTV2 LiteX Base SoC",
             reserve_nmi_interrupt=False,
@@ -561,7 +561,7 @@ class BaseSoC(SoCSDRAM):
         # sdram
         iodelay_clk_freq = int(400e6)
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
-        self.ddrphy.settings.add_electrical_settings(rtt_nom='60ohm', rtt_wr='disabled', ron='40ohm')
+        self.ddrphy.settings.add_electrical_settings(rtt_nom='60ohm', rtt_wr='disabled', ron='34ohm')
         self.add_constant("IDELAYCTRL_CLOCK_FREQUENCY", int(iodelay_clk_freq))
         sdram_module = K4B2G1646FBCK0(self.clk_freq, "1:4", speedgrade='1600')
         self.add_constant("READ_LEVELING_BITSLIP", 3)
@@ -1681,7 +1681,7 @@ class GtpTesterSoC(BaseSoC):
 class RamTesterSoC(BaseSoC):
 
     def __init__(self, platform, part, *args, **kwargs):
-        BaseSoC.__init__(self, platform, *args, **kwargs)
+        BaseSoC.__init__(self, platform, rom_size=0x7000, *args, **kwargs) # bigger ROM for test routines
 
         self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan on
         if part == "35":  # green if 35T

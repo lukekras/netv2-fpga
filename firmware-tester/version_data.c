@@ -2,18 +2,14 @@
 const char* board = "NeTV2";
 const char* target = "Test";
 
-const char* git_commit = "034c39bc92aa712a7f945729cd564a3b210522a9";
-const char* git_branch = "tester-master";
-const char* git_describe = "v0.0-65-g034c39b-dirty";
+const char* git_commit = "63cc110737af888bc8db3c43f9fe047fefc74e71";
+const char* git_branch = "debug-ddr";
+const char* git_describe = "v0.0-68-g63cc110-dirty";
 const char* git_status =
     "    --\r\n"
    "     M ../deps/litex\r\n"
-   "     M version_data.c\r\n"
+   "     M ../make_tester.sh\r\n"
    "     M ../netv2mvp.py\r\n"
-   "     M ../tester-images/gtptester-100.bit\r\n"
-   "     M ../tester-images/gtptester-35.bit\r\n"
-   "     M ../tester-images/gtptester-firmware.bin\r\n"
-   "     M ../tester-images/tester-100.bit\r\n"
    "     M ../tester-images/tester-35.bit\r\n"
    "    ?? ../.idea/\r\n"
    "    ?? ../__pycache__/\r\n"

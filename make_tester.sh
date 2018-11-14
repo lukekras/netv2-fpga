@@ -16,14 +16,36 @@ else
     echo "Run set to $1."
 fi
 
+if [ -z "$2" ]
+then
+    TYPE="all"
+    echo "None of 35T or 100T specified, so making for both types."
+else
+    if [ "$2" = "35T" ]
+    then
+	TYPE="35T"
+    elif [ "$2" = "100T" ]
+    then
+	TYPE="100T"
+    else
+	TYPE="all"
+    fi
+fi
+
 if [ "$RUN" = "all" ] || [ "$RUN" = "gtptester" ]
 then
-    echo "Running gtptester 100T FPGA build..."
-    ./netv2mvp.py -p 100 -t gtptester
-    cp ./build/gateware/top.bit ./tester-images/gtptester-100.bit
-    echo "Running gtptester 35T FPGA build..."
-    ./netv2mvp.py -p 35 -t gtptester
-    cp ./build/gateware/top.bit ./tester-images/gtptester-35.bit
+    if [ "$TYPE" = "all" ] || [ "$TYPE" = "100T" ]
+       then
+	   echo "Running gtptester 100T FPGA build..."
+	   ./netv2mvp.py -p 100 -t gtptester
+	   cp ./build/gateware/top.bit ./tester-images/gtptester-100.bit
+    fi
+    if [ "$TYPE" = "all" ] || [ "$TYPE" = "35T" ]
+       then
+	   echo "Running gtptester 35T FPGA build..."
+	   ./netv2mvp.py -p 35 -t gtptester
+	   cp ./build/gateware/top.bit ./tester-images/gtptester-35.bit
+    fi
     
     echo "Running gtptester firmware build..."
     cd ./firmware-tester && make clean && make && cd ..
@@ -46,12 +68,19 @@ fi
 
 if [ "$RUN" = "all" ] || [ "$RUN" = "tester" ]
 then
-    echo "Running tester 35T FPGA build..."
-    ./netv2mvp.py -p 100 -t tester
-    cp ./build/gateware/top.bit ./tester-images/tester-100.bit
-    echo "Running tester 100T FPGA build..."
-    ./netv2mvp.py -p 35 -t tester
-    cp ./build/gateware/top.bit ./tester-images/tester-35.bit
+    if [ "$TYPE" = "all" ] || [ "$TYPE" = "100T" ]
+       then
+	   echo "Running tester 100T FPGA build..."
+	   ./netv2mvp.py -p 100 -t tester
+	   cp ./build/gateware/top.bit ./tester-images/tester-100.bit
+    fi
+
+    if [ "$TYPE" = "all" ] || [ "$TYPE" = "35T" ]
+       then
+	   echo "Running tester 35T FPGA build..."
+	   ./netv2mvp.py -p 35 -t tester
+	   cp ./build/gateware/top.bit ./tester-images/tester-35.bit
+    fi
     
     echo "Running tester firmware build..."
     cd ./firmware-tester && make clean && make && cd ..

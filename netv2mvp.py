@@ -81,7 +81,7 @@ _io = [
         Subsignal("ras_n", Pins("Y9"), IOStandard("SSTL15_R")),
         Subsignal("cas_n", Pins("Y7"), IOStandard("SSTL15_R")),
         Subsignal("we_n", Pins("V8"), IOStandard("SSTL15_R")),
-        Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT60")),
+        Subsignal("dm", Pins("G1 H4 M5 L3"), IOStandard("SSTL15_R")),
         Subsignal("dq", Pins(
             "C2 F1 B1 F3 A1 D2 B2 E2 "
             "J5 H3 K1 H2 J1 G2 H5 G3 "
@@ -90,8 +90,8 @@ _io = [
             ),
             IOStandard("SSTL15_R"),
             Misc("IN_TERM=UNTUNED_SPLIT_60")),
-        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT60")),
-        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT60")),
+        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_60")),
+        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_60")),
         Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("cke", Pins("Y8"), IOStandard("SSTL15_R")),

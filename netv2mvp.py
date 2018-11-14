@@ -473,6 +473,7 @@ class CRG(Module):
             self.specials += [
                 Instance("PLLE2_BASE",
                          p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+                         p_BANDWIDTH="LOW",
 
                          # VCO @ 1600 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,

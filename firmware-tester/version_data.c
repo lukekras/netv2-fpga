@@ -2,9 +2,9 @@
 const char* board = "NeTV2";
 const char* target = "Test";
 
-const char* git_commit = "a4623142fb222eb9e90cee3c3dc685877a9f62d0";
+const char* git_commit = "6f4dd0700a11c8e4beaa18a263d8194ffa55b26e";
 const char* git_branch = "debug-ddr";
-const char* git_describe = "v0.0-72-ga462314-dirty";
+const char* git_describe = "v0.0-73-g6f4dd07-dirty";
 const char* git_status =
     "    --\r\n"
    "     M ../deps/litedram\r\n"

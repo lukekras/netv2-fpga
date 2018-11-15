@@ -1376,49 +1376,6 @@ class TesterSoC(BaseSoC):
             self.crg.cd_sys.clk,
             self.sdclk.cd_sd_fb.clk)
 
-        #### GTP interfaces
-        from liteiclink.transceiver.gtp_7series import GTPQuadPLL, GTP
-
-        # refclk  TODO: change to diff pair input, 100MHz
-        refclk125 = Signal()
-        refclk125_bufg = Signal()
-        pll_fb = Signal()
-        self.specials += [
-            Instance("PLLE2_BASE",
-                     p_STARTUP_WAIT="FALSE",  # o_LOCKED=,
-
-                     # VCO @ 1GHz
-                     p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=10.0,
-                     p_CLKFBOUT_MULT=35, p_DIVCLK_DIVIDE=4,
-                     i_CLKIN1=ClockSignal("clk100"), i_CLKFBIN=pll_fb, o_CLKFBOUT=pll_fb,
-
-                     # 125MHz
-                     p_CLKOUT0_DIVIDE=7, p_CLKOUT0_PHASE=0.0, o_CLKOUT0=refclk125
-                     ),
-            Instance("BUFG", i_I=refclk125, o_O=refclk125_bufg)
-        ]
-        platform.add_platform_command("set_property SEVERITY {{Warning}} [get_drc_checks REQP-49]")
-
-        # qpll
-        self.submodules.qpll = qpll = GTPQuadPLL(refclk125_bufg, 125e6, 1.25e9)
-        print(qpll)
-
-        # gtp
-        self.submodules.gtp0 = GTP(qpll,
-                                   platform.request("gtp_tx", 0),
-                                   platform.request("gtp_rx", 0),
-                                   (100e6),
-                                   clock_aligner=False, internal_loopback=False)
-
-        self.gtp0.cd_tx.clk.attr.add("keep")
-        self.gtp0.cd_rx.clk.attr.add("keep")
-        platform.add_period_constraint(self.gtp0.cd_tx.clk, 1e9 / self.gtp0.tx_clk_freq)
-        platform.add_period_constraint(self.gtp0.cd_rx.clk, 1e9 / self.gtp0.tx_clk_freq)
-        self.platform.add_false_path_constraints(
-            self.crg.cd_sys.clk,
-            self.gtp0.cd_tx.clk,
-            self.gtp0.cd_rx.clk)
-
         #### analyzer ethernet
         from liteeth.phy.rmii import LiteEthPHYRMII
         from liteeth.core import LiteEthUDPIPCore

@@ -10,14 +10,14 @@ SECTIONS
 	.fbi :
 	{
 		. = . + 8; /* Firmware Base Image format (len/crc) data comes first. */
-	} > user_flash
+	} > spiflash
 
 	.text :
 	{
 		_ftext = .;
 		*(.text .stub .text.* .gnu.linkonce.t.*)
 		_etext = .;
-	} > user_flash
+	} > spiflash
 
 	.rodata :
 	{
@@ -26,9 +26,9 @@ SECTIONS
 		*(.rodata .rodata.* .gnu.linkonce.r.*)
 		*(.rodata1)
 		_erodata = .;
-	} > user_flash
+	} > spiflash
 
-	.data : AT (ADDR(.rodata) + SIZEOF (.rodata))
+	.data : 
 	{
 		. = ALIGN(4);
 		_fdata = .;

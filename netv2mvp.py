@@ -1525,10 +1525,12 @@ class GtpTesterSoC(BaseSoC):
         "gtp2",
         "gtp3",
     ]
-    csr_map_update(BaseSoC.csr_map, csr_peripherals)
 
+    csr_map_update(BaseSoC.csr_map, csr_peripherals)
     def __init__(self, platform, part, *args, **kwargs):
         BaseSoC.__init__(self, platform, *args, **kwargs)
+
+        self.add_constant("TEST_EXTRAM", 1)
 
         self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan on
         if part == "35":  # green if 35T

@@ -89,9 +89,9 @@ _io = [
             "K3 M2 K4 M3 J6 L5 J4 K6 "
             ),
             IOStandard("SSTL15_R"),
-            Misc("IN_TERM=UNTUNED_SPLIT_50")),
-        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R")),
-        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R")),
+            Misc("IN_TERM=UNTUNED_SPLIT_60")),
+        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_60")),
+        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_60")),
         Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("cke", Pins("Y8"), IOStandard("SSTL15_R")),
@@ -380,6 +380,8 @@ class CRG(Module):
             self.specials += [
                 Instance("PLLE2_BASE",
                          p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+                         p_BANDWIDTH="HIGH",  # HIGH minimizes VCO-origin jitter, at expense of transferred jitter from clock reference
+                         # picked with the theory that on-chip is high noise environment, and the crystal clock is quite low jitter already
 
                          # VCO @ 1600 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
@@ -477,7 +479,7 @@ class BaseSoC(SoCSDRAM):
 
         # sdram
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
-        self.ddrphy.settings.add_electrical_settings(rtt_nom='60ohm', rtt_wr='disabled', ron='40ohm')
+        self.ddrphy.settings.add_electrical_settings(rtt_nom='20ohm', rtt_wr='disabled', ron='40ohm')
         self.add_constant("IDELAYCTRL_CLOCK_FREQUENCY", int(iodelay_clk_freq))
         sdram_module = K4B2G1646FBCK0(self.clk_freq, "1:4", speedgrade='1600')
         self.add_constant("READ_LEVELING_BITSLIP", 3)

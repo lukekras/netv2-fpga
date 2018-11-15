@@ -1231,7 +1231,7 @@ class TesterSoC(BaseSoC):
         "hdmi_in1",
         "hdmi_in1_freq",
         "hdmi_in1_edid_mem",
-        "analyzer",
+#        "analyzer",
         "phy",
         "core",
         "looptest",
@@ -1241,7 +1241,6 @@ class TesterSoC(BaseSoC):
         "sdtimer",
         "bist_generator",
         "bist_checker",
-        "gtp0",
     ]
     csr_map_update(BaseSoC.csr_map, csr_peripherals)
 
@@ -1483,7 +1482,7 @@ class TesterSoC(BaseSoC):
             self.crg.cd_eth.clk,
         )
 
-        from litescope import LiteScopeAnalyzer
+#        from litescope import LiteScopeAnalyzer
 
         # Analyzing GTP
         # analyzer_signals = [
@@ -1497,26 +1496,26 @@ class TesterSoC(BaseSoC):
         # self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, clock_domain="rx")
 
         # Analyzing SD
-        analyzer_signals = [
-            self.sdcore.new_command.o,
-            self.sdcore.fsm,
-            self.sdphy.io.cmd_t.o,
-            self.sdphy.io.data_t.o,
-            self.sdphy.sdpads.clk,
-            self.sdphy.sdpads.cmd.i,
-            self.sdphy.io.cmd_t.oe,
-            self.sdphy.io.data_t.oe,
+        # analyzer_signals = [
+        #     self.sdcore.new_command.o,
+        #     self.sdcore.fsm,
+        #     self.sdphy.io.cmd_t.o,
+        #     self.sdphy.io.data_t.o,
+        #     self.sdphy.sdpads.clk,
+        #     self.sdphy.sdpads.cmd.i,
+        #     self.sdphy.io.cmd_t.oe,
+        #     self.sdphy.io.data_t.oe,
         #    self.sdcore.cmddone,
         #    self.sdcore.waitresp,
         #    self.sdcore.dataxfer,
         #    self.sdcore.datadone,
         #    self.sdcore.pos,
         #    self.sdcore.cmdevt.status,
-        ]
-        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, clock_domain="sd")
+#        ]
+#        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 256, clock_domain="sd")
 
-    def do_exit(self, vns):
-        self.analyzer.export_csv(vns, "test/analyzer.csv")
+#    def do_exit(self, vns):
+#        self.analyzer.export_csv(vns, "test/analyzer.csv")
 
 
 class GtpTesterSoC(BaseSoC):

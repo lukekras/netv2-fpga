@@ -541,7 +541,7 @@ class BaseSoC(SoCSDRAM):
     }
     mem_map.update(SoCSDRAM.mem_map)
 
-    def __init__(self, platform, rom_size=0x6000, spiflash="spiflash_1x", **kwargs):
+    def __init__(self, platform, rom_size=0x5000, spiflash="spiflash_1x", **kwargs):
         clk_freq = int(100e6)
         SoCSDRAM.__init__(self, platform, clk_freq,
             integrated_rom_size=rom_size,

@@ -99,7 +99,8 @@ unsigned int lfsr_next(void)
 
 #define VIDEO_HACTIVE  1280
 #define VIDEO_VACTIVE  720
-#define VIDEO_FREQ     74250000
+//#define VIDEO_FREQ     74250000
+#define VIDEO_FREQ     74218750  // sourcing off 50MHz clock can't divide perfectly into 74.25
 
 #define ERR_PRINT_LIMIT 100
 int transform_source(int source);

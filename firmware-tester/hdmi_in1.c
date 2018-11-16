@@ -21,6 +21,7 @@ static int idelay_freq = IDELAYCTRL_CLOCK_FREQUENCY;
 #else
 static int idelay_freq = 200000000; // default to 200 MHz
 #endif
+static int iodelay_tap_duration = 78;
 
 int hdmi_in1_debug;
 int hdmi_in1_fb_index;
@@ -110,6 +111,14 @@ static int hdmi_in1_locked;
 
 void hdmi_in1_init_video(int hres, int vres)
 {
+	if( idelay_freq == 400000000 ) {
+	  iodelay_tap_duration = 39;
+	} else if( idelay_freq == 300000000 ) {
+	  iodelay_tap_duration = 52;
+	} else {
+	  iodelay_tap_duration = 78;
+	}
+	
 	hdmi_in1_hres = hres; hdmi_in1_vres = vres;
 
 	hdmi_in1_enable();
@@ -241,13 +250,6 @@ int hdmi_in1_calibrate_delays(int freq)
 	hdmi_in1_d0 = hdmi_in1_d1 = hdmi_in1_d2 = 0;
 #elif CSR_HDMI_IN1_CLOCKING_MMCM_RESET_ADDR
 	int i, phase_detector_delay;
-	int iodelay_tap_duration;
-
-	if( idelay_freq == 400000000 ) {
-	  iodelay_tap_duration = 39;
-	} else {
-	  iodelay_tap_duration = 78;
-	}
 	
 	hdmi_in1_data0_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);
 	hdmi_in1_data1_cap_dly_ctl_write(DVISAMPLER_DELAY_RST);

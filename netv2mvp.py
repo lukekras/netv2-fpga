@@ -469,6 +469,11 @@ class CRG(Module):
             self.comb += self.cd_eth.clk.eq(self.cd_clk50.clk)
 
         else:
+            if iodelay_clk_freq == int(400e6) or iodelay_clk_freq == int(200e6):
+                clkfbout_mult=32
+            elif iodelay_clk_freq == int(300e6):
+                clkfbout_mult=24
+
             pll_fb_bufg = Signal()
             self.specials += [
                 Instance("PLLE2_BASE",
@@ -477,7 +482,7 @@ class CRG(Module):
 
                          # VCO @ 1600 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-                         p_CLKFBOUT_MULT=24, p_DIVCLK_DIVIDE=1,
+                         p_CLKFBOUT_MULT=clkfbout_mult, p_DIVCLK_DIVIDE=1,
                          i_CLKIN1=self.cd_clk50.clk, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
 
                          # 100 MHz
@@ -507,7 +512,7 @@ class CRG(Module):
                 Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
                 Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
                 Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
-                Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
+                Instance("BUFG", i_I=clk50, o_O=self.cd_eth.clk),
                 AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst),
                 # add | ~pll_ss_locked when using SS
                 AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
@@ -1540,7 +1545,7 @@ class GtpTesterSoC(BaseSoC):
     def __init__(self, platform, part, *args, **kwargs):
         BaseSoC.__init__(self, platform, *args, **kwargs)
 
-        self.add_constant("TEST_EXTRAM", 1)
+#        self.add_constant("TEST_EXTRAM", 1) # eliminate extram test for lower frequency builds
 
         self.comb += platform.request("fan_pwm", 0).eq(1) # lock the fan on
         if part == "35":  # green if 35T

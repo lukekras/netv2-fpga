@@ -316,6 +316,10 @@ class CRG(Module):
         pll_sys4x_dqs = Signal()
         pll_clk200 = Signal()
         pll_clk50 = Signal()
+        clk50_distbuf = Signal()
+        self.specials += [
+            Instance("BUFG", i_I=clk50, o_O=clk50_distbuf),
+        ]
 
         if use_ss:
             ss_fb = Signal()
@@ -323,9 +327,7 @@ class CRG(Module):
             clk50_ss_buf = Signal()
             pll_ss_locked = Signal()
 
-            clk50_distbuf = Signal()
             self.specials += [
-                Instance("BUFG", i_I=clk50, o_O=clk50_distbuf),
                 Instance("MMCME2_ADV",
                          p_BANDWIDTH="LOW", p_SS_EN="TRUE", p_SS_MODE="DOWN_HIGH",  # DOWN_HIGH for greater spreading
                          o_LOCKED=pll_ss_locked,
@@ -406,20 +408,15 @@ class CRG(Module):
                          # VCO @ 1600 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                          p_CLKFBOUT_MULT=clkfbout_mult, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
+                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
 
                          # 50 MHz
-                         p_CLKOUT0_DIVIDE=clkfbout_mult, p_CLKOUT0_PHASE=0.0,
-                         o_CLKOUT0=clk50_rhs,  # transfer clock to RHS (right hand side)
+#                         p_CLKOUT0_DIVIDE=clkfbout_mult, p_CLKOUT0_PHASE=0.0,
+#                         o_CLKOUT0=clk50_rhs,  # transfer clock to RHS (right hand side)
 
                          # 400 MHz
                          p_CLKOUT2_DIVIDE=4, p_CLKOUT2_PHASE=0.0,
                          o_CLKOUT2=delayrefclk,
-
-                         # 200 MHz
-                         p_CLKOUT3_DIVIDE=8, p_CLKOUT3_PHASE=0.0,
-                         o_CLKOUT3=pll_clk200,
-
                          ),
                 
                 # these should be on the RHS
@@ -430,7 +427,7 @@ class CRG(Module):
                          # VCO @ 800 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                          p_CLKFBOUT_MULT_F=clkfbout_mult/2, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50_rhs_g, i_CLKFBIN=mmcm_rhs_fb_d_g, o_CLKFBOUT=mmcm_rhs_fb_d,
+                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=mmcm_rhs_fb_d_g, o_CLKFBOUT=mmcm_rhs_fb_d,
 
                          # 400 MHz
                          p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0,
@@ -460,7 +457,7 @@ class CRG(Module):
                          # VCO @ 800 MHz
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
                          p_CLKFBOUT_MULT_F=clkfbout_mult/2, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50_rhs_g, i_CLKFBIN=mmcm_rhs_fb_ac_g, o_CLKFBOUT=mmcm_rhs_fb_ac,
+                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=mmcm_rhs_fb_ac_g, o_CLKFBOUT=mmcm_rhs_fb_ac,
 
                          # 400 MHz
                          p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0,
@@ -481,7 +478,7 @@ class CRG(Module):
                 Instance("BUFG", i_I=pll_sys2x, o_O=self.cd_sys2x.clk), #, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
                 Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
 #                Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
-#                Instance("BUFIO", i_I=pll_sys4x_ac, o_O=self.cd_sys4x_ac.clk),
+                Instance("BUFIO", i_I=pll_sys4x_ac, o_O=self.cd_sys4x_ac.clk),
 
                 AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~slave_locked),
                 # add | ~pll_ss_locked when using SS

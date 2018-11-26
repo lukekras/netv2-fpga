@@ -299,10 +299,10 @@ class CRG(Module):
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_ac = ClockDomain(reset_less=True)
-        self.clock_domains.cd_sys2x = ClockDomain()
+        self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
+        self.clock_domains.cd_sys2x_route = ClockDomain()
         self.clock_domains.cd_delayrefclk = ClockDomain()
 
-        self.clock_domains.cd_clk200 = ClockDomain()
         self.clock_domains.cd_eth = ClockDomain()
 
         clk50 = platform.request("clk50")
@@ -398,6 +398,7 @@ class CRG(Module):
             mmcm_rhs_fb_ac_g = Signal()
             delayrefclk = Signal()
             pll_sys2x = Signal()
+            pll_sys2x_route = Signal()
             pll_sys4x_ac = Signal()
             self.specials += [
                 Instance("PLLE2_BASE",
@@ -437,13 +438,17 @@ class CRG(Module):
                          p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.0,
                          o_CLKOUT1=pll_sys2x,
 
+                         # 200 MHz
+                         p_CLKOUT3_DIVIDE=4, p_CLKOUT3_PHASE=0.0,
+                         o_CLKOUT3=pll_sys2x_route,
+
                          # 400 MHz dqs
                          p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=90.0,
                          o_CLKOUT2=pll_sys4x_dqs,
 
                          # 100 MHz
-                         p_CLKOUT3_DIVIDE=8, p_CLKOUT3_PHASE=0.0,
-                         o_CLKOUT3=self.pll_sys,
+                         p_CLKOUT5_DIVIDE=8, p_CLKOUT5_PHASE=0.0,
+                         o_CLKOUT5=self.pll_sys,
 
                          # 50 MHz
                          p_CLKOUT4_DIVIDE=clkfbout_mult/2, p_CLKOUT4_PHASE=0.0,  
@@ -470,22 +475,21 @@ class CRG(Module):
                 Instance("BUFG", i_I=mmcm_rhs_fb_ac, o_O=mmcm_rhs_fb_ac_g),
 
                 Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
-                Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
                 Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
                 Instance("BUFG", i_I=delayrefclk, o_O=self.cd_delayrefclk.clk),
 
-                Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-                Instance("BUFG", i_I=pll_sys2x, o_O=self.cd_sys2x.clk), #, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
-                Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
+                Instance("BUFIO", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
+                Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
+                Instance("BUFG", i_I=pll_sys2x_route, o_O=self.cd_sys2x_route.clk), #, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
+                Instance("BUFIO", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
 #                Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
                 Instance("BUFIO", i_I=pll_sys4x_ac, o_O=self.cd_sys4x_ac.clk),
 
                 AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~slave_locked),
                 # add | ~pll_ss_locked when using SS
-                AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst | ~slave_locked),
                 AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~slave_locked),
                 AsyncResetSynchronizer(self.cd_delayrefclk, ~pll_locked | rst | ~slave_locked),
-                AsyncResetSynchronizer(self.cd_sys2x, ~pll_locked | rst | ~slave_locked),
+                AsyncResetSynchronizer(self.cd_sys2x_route, ~pll_locked | rst | ~slave_locked),
             ]
 
         if iodelay_clk_freq == 200e6:

@@ -290,17 +290,24 @@ def period_ns(freq):
     return 1e9/freq
 
 # valid values are 200e6, 300e6, and 400e6
-iodelay_clk_freq = int(400e6)  # set for multiple functions, valid values are 200e6 and 400e6
+iodelay_clk_freq = int(300e6)  # set for multiple functions, valid values are 200e6 and 400e6
 
-class CRG(Module):
-    def __init__(self, platform, use_ss=False):
+class CRG(Module, AutoCSR):
+    def __init__(self, platform, use_ss=False, dqs_phase=112.5): # dqs_phase is multiple of 22.50
+        # DRP
+        self._mmcm_read = CSR()
+        self._mmcm_write = CSR()
+        self._mmcm_drdy = CSRStatus()
+        self._mmcm_adr = CSRStorage(7)
+        self._mmcm_dat_w = CSRStorage(16)
+        self._mmcm_dat_r = CSRStatus(16)
+
         # use_ss when True enables spread spectrum clocking
         self.clock_domains.cd_sys = ClockDomain()
         self.clock_domains.cd_sys4x = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_dqs = ClockDomain(reset_less=True)
         self.clock_domains.cd_sys4x_ac = ClockDomain(reset_less=True)
-        self.clock_domains.cd_sys2x = ClockDomain(reset_less=True)
-        self.clock_domains.cd_sys2x_route = ClockDomain()
+        self.clock_domains.cd_sys2x = ClockDomain()
         self.clock_domains.cd_delayrefclk = ClockDomain()
 
         self.clock_domains.cd_eth = ClockDomain()
@@ -317,11 +324,136 @@ class CRG(Module):
         pll_clk200 = Signal()
         pll_clk50 = Signal()
         clk50_distbuf = Signal()
+
         self.specials += [
-            Instance("BUFG", i_I=clk50, o_O=clk50_distbuf),
+            Instance("BUFG", i_I=clk50, o_O=clk50_distbuf), # this allows PLLs/MMCMEs to be placed anywhere and reference the input clock
         ]
 
-        if use_ss:
+        refclk_freq = 50e6
+        if iodelay_clk_freq == int(400e6) or iodelay_clk_freq == int(200e6):
+            clkfbout_mult = 16
+        elif iodelay_clk_freq == int(300e6):
+            clkfbout_mult = 12
+
+        print("Using dqsphase argument of " + str(dqs_phase))
+
+        if use_ss == False:
+            pll_fb_bufg = Signal()
+            mmcm_rhs_fb_d = Signal()
+            mmcm_rhs_fb_d_g = Signal()
+            mmcm_rhs_fb_ac = Signal()
+            mmcm_rhs_fb_ac_g = Signal()
+            delayrefclk = Signal()
+            pll_sys2x = Signal()
+            pll_sys2x_route = Signal()
+            pll_sys4x_ac = Signal()
+            mmcm_drdy = Signal()
+            self.specials += [
+                # This PLL could be merged into the _ac MMCME2, but it's separated because we have the extra PLLs
+                # and it allows us to set different bandwidths for the oscillator to optimize the jitter profiles
+                Instance("PLLE2_BASE",
+                         p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
+                         p_BANDWIDTH="HIGH",  # HIGH minimizes VCO-origin jitter, at expense of transferred jitter from clock reference
+                         # picked with the theory that on-chip is high noise environment, and the crystal clock is quite low jitter already
+
+                         # VCO @ 1200 MHz per clocking wizard
+                         p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=(1/refclk_freq)*1e9,
+                         p_CLKFBOUT_MULT=24, p_DIVCLK_DIVIDE=1,
+                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
+
+                         # based on iodelay_clk_freq
+                         p_CLKOUT2_DIVIDE=refclk_freq*24/iodelay_clk_freq, p_CLKOUT2_PHASE=0.0,
+                         o_CLKOUT2=delayrefclk,
+                         ),
+                
+                # these generators should be on the right hand side (closest to DDR memory IOs)
+                # This MMCME2 generates clocks for the data/dqs pins, closely coupled via BUFIOs
+                Instance("MMCME2_ADV",
+                         p_STARTUP_WAIT="FALSE", o_LOCKED=slave_locked,
+                         p_BANDWIDTH="OPTIMIZED",
+
+                         # VCO @ 800 MHz or 600 MHz
+                         p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=(1/refclk_freq)*1e9,
+                         p_CLKFBOUT_MULT_F=clkfbout_mult, p_DIVCLK_DIVIDE=1,
+                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=mmcm_rhs_fb_d_g, o_CLKFBOUT=mmcm_rhs_fb_d,
+
+                         # 400 MHz - BUFIO
+                         p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0,
+                         o_CLKOUT0=pll_sys4x,
+
+                         # 200 MHz - BUFR
+                         p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.0,
+                         o_CLKOUT1=pll_sys2x,
+
+                         # 400 MHz dqs - BUFIO
+                         p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=dqs_phase,  # should be a multiple of 22.50
+                         o_CLKOUT2=pll_sys4x_dqs,
+
+                         # 100 MHz - routing fabric
+                         p_CLKOUT5_DIVIDE=8, p_CLKOUT5_PHASE=0.0,
+                         o_CLKOUT5=self.pll_sys,
+
+                         # 50 MHz, this one is constant across 200/300/400 MHz IDELAYCTRL variants
+                         p_CLKOUT4_DIVIDE=clkfbout_mult, p_CLKOUT4_PHASE=0.0,
+                         o_CLKOUT4=pll_clk50,
+
+                         # DRP
+                         i_DCLK=ClockSignal(),
+                         i_DWE=self._mmcm_write.re,
+                         i_DEN=self._mmcm_read.re | self._mmcm_write.re,
+                         o_DRDY=mmcm_drdy,
+                         i_DADDR=self._mmcm_adr.storage,
+                         i_DI=self._mmcm_dat_w.storage,
+                         o_DO=self._mmcm_dat_r.status
+                         ),
+
+                # This PLL is separate from the above because it needs to be placed in the same bank as the
+                # address/control pins to route the outputs to BUFIOs
+                Instance("MMCME2_ADV",
+                         p_STARTUP_WAIT="FALSE",
+                         p_BANDWIDTH="OPTIMIZED",
+
+                         # VCO @ 800 MHz
+                         p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
+                         p_CLKFBOUT_MULT_F=clkfbout_mult, p_DIVCLK_DIVIDE=1,
+                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=mmcm_rhs_fb_ac_g, o_CLKFBOUT=mmcm_rhs_fb_ac,
+
+                         # 400 MHz - BUFIO
+                         p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0,
+                         o_CLKOUT0=pll_sys4x_ac,
+                ),
+                # feedback delay compensation buffers
+                Instance("BUFG", i_I=pll_fb, o_O=pll_fb_bufg),
+                Instance("BUFG", i_I=mmcm_rhs_fb_d, o_O=mmcm_rhs_fb_d_g),
+                Instance("BUFG", i_I=mmcm_rhs_fb_ac, o_O=mmcm_rhs_fb_ac_g),
+
+                # global distribution buffers
+                Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
+                Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
+                Instance("BUFG", i_I=delayrefclk, o_O=self.cd_delayrefclk.clk),
+
+                # local IO clocks for DDR
+                Instance("BUFIO", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
+                #Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
+                Instance("BUFR", i_I=pll_sys4x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
+                #Instance("BUFG", i_I=pll_sys2x_route, o_O=self.cd_sys2x_route.clk), #, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
+                Instance("BUFIO", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
+
+                Instance("BUFIO", i_I=pll_sys4x_ac, o_O=self.cd_sys4x_ac.clk),
+
+                AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~slave_locked),
+                AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~slave_locked),
+                AsyncResetSynchronizer(self.cd_delayrefclk, ~pll_locked | rst | ~slave_locked),
+                AsyncResetSynchronizer(self.cd_sys2x, ~pll_locked | rst | ~slave_locked),
+            ]
+            self.sync += [
+                If(self._mmcm_read.re | self._mmcm_write.re,
+                    self._mmcm_drdy.status.eq(0)
+                ).Elif(mmcm_drdy,
+                    self._mmcm_drdy.status.eq(1)
+                )
+            ]
+        else:
             ss_fb = Signal()
             clk50_ss = Signal()
             clk50_ss_buf = Signal()
@@ -362,156 +494,36 @@ class CRG(Module):
                          o_CLKOUT1=pll_sys4x,
 
                          # 400 MHz dqs
-                         p_CLKOUT2_DIVIDE=4, p_CLKOUT2_PHASE=90.0,
+                         p_CLKOUT2_DIVIDE=4, p_CLKOUT2_PHASE=dqs_phase,
                          o_CLKOUT2=pll_sys4x_dqs,
 
                          # 200 MHz
                          p_CLKOUT3_DIVIDE=8, p_CLKOUT3_PHASE=0.0,
                          o_CLKOUT3=pll_clk200,
 
-                ),
+                         ),
                 Instance("BUFG", i_I=pll_fb, o_O=pll_fb_bufg),
 
                 Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
                 Instance("BUFG", i_I=pll_clk200, o_O=self.cd_clk200.clk),
                 Instance("BUFG", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
                 Instance("BUFG", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
-                AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~pll_ss_locked  ),
+                AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~pll_ss_locked),
                 AsyncResetSynchronizer(self.cd_clk200, ~pll_locked | rst),
 
-                AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~pll_ss_locked ),
+                AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~pll_ss_locked),
             ]
             self.comb += self.cd_eth.clk.eq(clk50_distbuf)
 
-        else:
-            if iodelay_clk_freq == int(400e6) or iodelay_clk_freq == int(200e6):
-                clkfbout_mult=32
-            elif iodelay_clk_freq == int(300e6):
-                clkfbout_mult=24
-
-            clk50_rhs = Signal()
-            clk50_rhs_g = Signal()
-            pll_fb_bufg = Signal()
-            mmcm_rhs_fb_d = Signal()
-            mmcm_rhs_fb_d_g = Signal()
-            mmcm_rhs_fb_ac = Signal()
-            mmcm_rhs_fb_ac_g = Signal()
-            delayrefclk = Signal()
-            pll_sys2x = Signal()
-            pll_sys2x_route = Signal()
-            pll_sys4x_ac = Signal()
-            self.specials += [
-                Instance("PLLE2_BASE",
-                         p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-                         p_BANDWIDTH="HIGH",  # HIGH minimizes VCO-origin jitter, at expense of transferred jitter from clock reference
-                         # picked with the theory that on-chip is high noise environment, and the crystal clock is quite low jitter already
-
-                         # VCO @ 1600 MHz
-                         p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-                         p_CLKFBOUT_MULT=clkfbout_mult, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
-
-                         # 50 MHz
-#                         p_CLKOUT0_DIVIDE=clkfbout_mult, p_CLKOUT0_PHASE=0.0,
-#                         o_CLKOUT0=clk50_rhs,  # transfer clock to RHS (right hand side)
-
-                         # 400 MHz
-                         p_CLKOUT2_DIVIDE=4, p_CLKOUT2_PHASE=0.0,
-                         o_CLKOUT2=delayrefclk,
-                         ),
-                
-                # these should be on the RHS
-                Instance("MMCME2_ADV",
-                         p_STARTUP_WAIT="FALSE", o_LOCKED=slave_locked,
-                         p_BANDWIDTH="OPTIMIZED",
-
-                         # VCO @ 800 MHz
-                         p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-                         p_CLKFBOUT_MULT_F=clkfbout_mult/2, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=mmcm_rhs_fb_d_g, o_CLKFBOUT=mmcm_rhs_fb_d,
-
-                         # 400 MHz
-                         p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0,
-                         o_CLKOUT0=pll_sys4x,
-
-                         # 200 MHz
-                         p_CLKOUT1_DIVIDE=4, p_CLKOUT1_PHASE=0.0,
-                         o_CLKOUT1=pll_sys2x,
-
-                         # 200 MHz
-                         p_CLKOUT3_DIVIDE=4, p_CLKOUT3_PHASE=0.0,
-                         o_CLKOUT3=pll_sys2x_route,
-
-                         # 400 MHz dqs
-                         p_CLKOUT2_DIVIDE=2, p_CLKOUT2_PHASE=90.0,
-                         o_CLKOUT2=pll_sys4x_dqs,
-
-                         # 100 MHz
-                         p_CLKOUT5_DIVIDE=8, p_CLKOUT5_PHASE=0.0,
-                         o_CLKOUT5=self.pll_sys,
-
-                         # 50 MHz
-                         p_CLKOUT4_DIVIDE=clkfbout_mult/2, p_CLKOUT4_PHASE=0.0,  
-                         o_CLKOUT4=pll_clk50,
-                         ),
-
-                Instance("MMCME2_ADV",
-                         p_STARTUP_WAIT="FALSE",
-                         p_BANDWIDTH="OPTIMIZED",
-
-                         # VCO @ 800 MHz
-                         p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=20.0,
-                         p_CLKFBOUT_MULT_F=clkfbout_mult/2, p_DIVCLK_DIVIDE=1,
-                         i_CLKIN1=clk50_distbuf, i_CLKFBIN=mmcm_rhs_fb_ac_g, o_CLKFBOUT=mmcm_rhs_fb_ac,
-
-                         # 400 MHz
-                         p_CLKOUT0_DIVIDE_F=2, p_CLKOUT0_PHASE=0.0,
-                         o_CLKOUT0=pll_sys4x_ac,
-                ),
-
-                Instance("BUFG", i_I=pll_fb, o_O=pll_fb_bufg),
-                Instance("BUFG", i_I=clk50_rhs, o_O=clk50_rhs_g),
-                Instance("BUFG", i_I=mmcm_rhs_fb_d, o_O=mmcm_rhs_fb_d_g),
-                Instance("BUFG", i_I=mmcm_rhs_fb_ac, o_O=mmcm_rhs_fb_ac_g),
-
-                Instance("BUFG", i_I=self.pll_sys, o_O=self.cd_sys.clk),
-                Instance("BUFG", i_I=pll_clk50, o_O=self.cd_eth.clk),
-                Instance("BUFG", i_I=delayrefclk, o_O=self.cd_delayrefclk.clk),
-
-                Instance("BUFIO", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-                Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
-                Instance("BUFG", i_I=pll_sys2x_route, o_O=self.cd_sys2x_route.clk), #, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
-                Instance("BUFIO", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
-#                Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
-                Instance("BUFIO", i_I=pll_sys4x_ac, o_O=self.cd_sys4x_ac.clk),
-
-                AsyncResetSynchronizer(self.cd_sys, ~pll_locked | rst | ~slave_locked),
-                # add | ~pll_ss_locked when using SS
-                AsyncResetSynchronizer(self.cd_eth, ~pll_locked | rst | ~slave_locked),
-                AsyncResetSynchronizer(self.cd_delayrefclk, ~pll_locked | rst | ~slave_locked),
-                AsyncResetSynchronizer(self.cd_sys2x_route, ~pll_locked | rst | ~slave_locked),
-            ]
-
-        if iodelay_clk_freq == 200e6:
-            reset_counter = Signal(4, reset=15) # 75ns @ 200MHz, min 59.28ns
-            ic_reset = Signal(reset=1)
-            self.sync.clk200 += \
-                If(reset_counter != 0,
-                    reset_counter.eq(reset_counter - 1)
-                ).Else(
-                    ic_reset.eq(0)
-                )
-            self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("clk200"), i_RST=ic_reset)
-        else: # applies for 400 and 300 MHz cases
-            reset_counter = Signal(4, reset=31)  # 77.5ns @ 400MHz, min 59.28ns
-            ic_reset = Signal(reset=1)
-            self.sync.delayrefclk += \
-                If(reset_counter != 0,
-                    reset_counter.eq(reset_counter - 1)
-                ).Else(
-                    ic_reset.eq(0)
-                )
-            self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("delayrefclk"), i_RST=ic_reset)
+        reset_counter = Signal(4, reset=31)  # 77.5ns @ 400MHz, min 59.28ns
+        ic_reset = Signal(reset=1)
+        self.sync.delayrefclk += \
+            If(reset_counter != 0,
+                reset_counter.eq(reset_counter - 1)
+            ).Else(
+                ic_reset.eq(0)
+            )
+        self.specials += Instance("IDELAYCTRL", i_REFCLK=ClockSignal("delayrefclk"), i_RST=ic_reset)
 
 class BaseSoC(SoCSDRAM):
     csr_peripherals = [
@@ -520,6 +532,7 @@ class BaseSoC(SoCSDRAM):
         "dna",
         "cpu_or_bridge",
         "spiflash",
+        "crg",
     ]
     csr_map_update(SoCSDRAM.csr_map, csr_peripherals)
 
@@ -528,14 +541,14 @@ class BaseSoC(SoCSDRAM):
     }
     mem_map.update(SoCSDRAM.mem_map)
 
-    def __init__(self, platform, spiflash="spiflash_1x", **kwargs):
+    def __init__(self, platform, dqs_phase="90.0", spiflash="spiflash_1x", **kwargs):
         if iodelay_clk_freq == int(400e6) or iodelay_clk_freq == int(200e6):
             clk_freq = int(100e6)
         elif iodelay_clk_freq == int(300e6):
             clk_freq = int(75e6)  # we achieve 300e6 by changing the master divider so the whole system goes slower
 
         SoCSDRAM.__init__(self, platform, clk_freq,
-            integrated_rom_size=0x5000,
+            integrated_rom_size=0x6000,
             integrated_sram_size=0x1000,
             ident="NeTV2 LiteX Base SoC",
             reserve_nmi_interrupt=False,
@@ -545,7 +558,7 @@ class BaseSoC(SoCSDRAM):
 
 #        self.register_mem("vexriscv_debug", 0xf00f0000, self.cpu_or_bridge.debug_bus, 0x10)
 
-        self.submodules.crg = CRG(platform, use_ss=False)
+        self.submodules.crg = CRG(platform, use_ss=False, dqs_phase=float(dqs_phase))
         self.submodules.dna = dna.DNA()
         self.submodules.xadc = xadc.XADC()
 
@@ -789,10 +802,12 @@ class VideoOverlaySoC(BaseSoC):
     }
     interrupt_map.update(BaseSoC.interrupt_map)
 
-    def __init__(self, platform, part, *args, **kwargs):
-        BaseSoC.__init__(self, platform, *args, **kwargs)
+    def __init__(self, platform, part, dqs_phase, *args, **kwargs):
+        BaseSoC.__init__(self, platform, dqs_phase, *args, **kwargs)
 
         # # #
+#        self.add_constant("SCAN_PHASE", 1) # do a dqs phase scan at boot
+        self.add_constant("BOOT_MEMTEST", 1) # a slightly more involved memtest at boot
 
         pix_freq = 148.50e6
 
@@ -909,14 +924,125 @@ class VideoOverlaySoC(BaseSoC):
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix1p25x_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets pix_o_rst]")
-        self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_hdmi_out0_clk_gen_ce]") # derived from reset
+        self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_s7hdmioutencoderserializer_ce]") # derived from reset
 
         # gearbox timing is a multi-cycle path: FAST to SLOW synchronous clock domains
         self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0]")
         self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0]")
         self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0]")
         self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0]")
+        # bitslip timing is also multi-cycle path
+        self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0] -to [get_clocks hdmi_in0_pix1p25x_r_clk]")
+        self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0] -to [get_clocks hdmi_in0_pix1p25x_r_clk]")
+        self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0] -to [get_clocks hdmi_in1_pix1p25x_r_clk]")
+        self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0] -to [get_clocks hdmi_in1_pix1p25x_r_clk]")
 
+        # This prevents the tri-state timing on DQ being a limiting path -- however, this should probably be a multi-cycle path
+        # and not a straight false_path. May need to adjust if the DQ tri-state timing seems to be a problem
+        self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_videooverlaysoc_a7ddrphy_oe_dq]")
+
+        """
+        ### Constrain the output DQS-to-data relationship so the DRAM data is centered correctly
+        #  Double Data Rate Source Synchronous Outputs
+        #
+        #  Source synchronous output interfaces can be constrained either by the max data skew
+        #  relative to the generated clock or by the destination device setup/hold requirements.
+        #
+        #  Setup/Hold Case:
+        #  Setup and hold requirements for the destination device and board trace delays are known.
+        #
+        # forwarded                        _________________________________
+        # clock                 __________|                                 |______________
+        #                                 |                                 |
+        #                           tsu_r |  thd_r                    tsu_f | thd_f
+        #                         <------>|<------->                <------>|<----->
+        #                         ________|_________                ________|_______
+        # data @ destination   XXX__________________XXXXXXXXXXXXXXXX________________XXXXX
+        #
+        # Example of creating generated clock at clock output port
+        # create_generated_clock -name <gen_clock_name> -multiply_by 1 -source [get_pins <source_pin>] [get_ports <output_clock_port>]
+        # gen_clock_name is the name of forwarded clock here. It should be used below for defining "fwclk".
+
+        # report_timing -rise_to [get_ports ddram_dq] -max_paths 20 -nworst 2 -delay_type min_max -name src_sync_ddr_out_rise
+        # report_timing -fall_to [get_ports ddram_dq] -max_paths 20 -nworst 2 -delay_type min_max -name src_sync_ddr_out_fall
+
+        tsu_r = 10.0 / 1000  # vivado units in ns, datasheet units in ps
+        thd_r = 45.0 / 1000
+        tsu_f = 10.0 / 1000
+        thd_f = 45.0 / 1000
+        trce_dly_max = 0.000  # maximum board trace delay
+        trce_dly_min = 0.000  # minimum board trace delay
+        output_ports = []
+        for i in range(0,32):
+            output_ports.append('ddram_dq[' + str(i) + ']')
+
+        # Output Delay Constraints
+        for i in range(0,32):
+            self.platform.add_platform_command(
+                "set_output_delay -clock soc_videooverlaysoc_videooverlaysoc_crg_pll_sys4x_dqs -max " + str(trce_dly_max + tsu_r) + " [get_ports " + output_ports[i] + "]"
+            )
+            self.platform.add_platform_command(
+                "set_output_delay -clock soc_videooverlaysoc_videooverlaysoc_crg_pll_sys4x_dqs -min " + str(trce_dly_min + thd_r) + " [get_ports " + output_ports[i] + "]"
+            )
+            self.platform.add_platform_command(
+                "set_output_delay -clock soc_videooverlaysoc_videooverlaysoc_crg_pll_sys4x_dqs -max " + str(trce_dly_max + tsu_f) + " [get_ports " + output_ports[i] + "] -clock_fall -add_delay"
+            )
+            self.platform.add_platform_command(
+                "set_output_delay -clock soc_videooverlaysoc_videooverlaysoc_crg_pll_sys4x_dqs -min " + str(trce_dly_min + thd_f) + " [get_ports " + output_ports[i] + "] -clock_fall -add_delay"
+            )
+        """
+
+        """     # We don't need these constraints because we calibrate this delay on boot
+
+        # Center-Aligned Double Data Rate Source Synchronous Inputs
+        #
+        # For a center-aligned Source Synchronous interface, the clock
+        # transition is aligned with the center of the data valid window.
+        # The same clock edge is used for launching and capturing the
+        # data. The constraints below rely on the default timing
+        # analysis (setup = 1/2 cycle, hold = 0 cycle).
+        #
+        # input                  ____________________
+        # clock    _____________|                    |_____________
+        #                       |                    |
+        #                dv_bre | dv_are      dv_bfe | dv_afe
+        #               <------>|<------>    <------>|<------>
+        #          _    ________|________    ________|________    _
+        # data     _XXXX____Rise_Data____XXXX____Fall_Data____XXXX_
+        #
+
+        # Report Timing template
+        # report_timing -rise_from [get_ports ddram_dq] -max_paths 20 -nworst 2 -delay_type min_max -name src_sync_cntr_ddr_in_rise
+        # report_timing -fall_from [get_ports ddram_dq] -max_paths 20 -nworst 2 -delay_type min_max -name src_sync_cntr_ddr_in_fall
+
+        input_clock = "dqsin"     # Name of input clock
+        input_clock_period = 2.5  # Period of input clock (full-period)
+        for i in range(0,4):
+            self.platform.add_platform_command(
+                "create_clock -period " + str(input_clock_period) + " -name " + input_clock + str(i) + " [get_ports ddram_dqs_p[" + str(i) + "] ]"
+            )
+
+        dv_bre = (input_clock_period/2) - 100.0 / 10000 # Data valid before the rising clock edge
+        dv_are = (input_clock_period/2) * 0.38
+        dv_bfe = (input_clock_period/2) - 100.0 / 10000 # Data valid before the falling clock edge
+        dv_afe = (input_clock_period/2) * 0.38 # Data valid after the falling clock edge
+        input_ports = "ddram_dq"  # List of input ports
+
+        # Input Delay Constraint
+        for i in range(0, 32):
+            self.platform.add_platform_command(
+                "set_input_delay -clock " + input_clock + str(i//8) + " -max " + str(input_clock_period/2 - dv_bfe) + " [get_ports ddram_dq[" + str(i) +"] ]"
+            )
+            self.platform.add_platform_command(
+                "set_input_delay -clock " + input_clock + str(i//8) + " -min " + str(dv_are) + " [get_ports ddram_dq[" + str(i) + "] ]"
+            )
+            self.platform.add_platform_command(
+                "set_input_delay -clock " + input_clock + str(i//8) + " -max " + str(input_clock_period/2 - dv_bre) + " [get_ports ddram_dq[" + str(i) + "] ] -clock_fall -add_delay"
+            )
+            self.platform.add_platform_command(
+                "set_input_delay -clock " + input_clock + str(i//8) + " -min " + str(dv_afe) + " [get_ports ddram_dq[" + str(i) + "] ] -clock_fall -add_delay"
+            )
+        """
 
         ###############  hdmi out 1 (overlay rgb)
 
@@ -1153,13 +1279,16 @@ def main():
     parser.add_argument(
         "-t", "--target", help="which FPGA environment to build for", choices=["base", "video_overlay", "pcie"], default="video_overlay"
     )
+    parser.add_argument(
+        "-d", "--dqsphase", help="set DQS phase offset", choices=["45.0", "67.5", "90.0", "112.5", "135.0", "157.5", "180.0"], default="90.0"
+    )
     args = parser.parse_args()
 
     platform = Platform(part=args.part)
     if args.target == "base":
         soc = BaseSoC(platform)
     elif args.target == "video_overlay":
-        soc = VideoOverlaySoC(platform, part=args.part)
+        soc = VideoOverlaySoC(platform, part=args.part, dqs_phase=args.dqsphase)
     builder = Builder(soc, output_dir="build", csr_csv="test/csr.csv")
     vns = builder.build()
     soc.do_exit(vns)

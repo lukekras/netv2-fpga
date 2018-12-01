@@ -637,6 +637,32 @@ void mmcm_decode_reg(unsigned int adr, unsigned int data) {
       printf( " 0(r)", data );
   }
 }
+#ifdef CSR_CRG_BASE
+void crg_mmcm_write(int adr, int data) {
+  int timeout = 0;
+	crg_mmcm_adr_write(adr);
+	crg_mmcm_dat_w_write(data);
+	crg_mmcm_write_write(1);
+	while(!crg_mmcm_drdy_read() && timeout < MMCM_TIMEOUT)
+	  timeout++;
+	if( timeout >= MMCM_TIMEOUT ) {
+	  printf("crg_mmcm_write failed with adr %x, data %x\n", adr, data);
+	}
+}
+
+int crg_mmcm_read(int adr) {
+  int timeout = 0;
+	crg_mmcm_adr_write(adr);
+	crg_mmcm_read_write(1);
+	while(!crg_mmcm_drdy_read() && timeout < MMCM_TIMEOUT)
+	  timeout++;
+	if( timeout >= MMCM_TIMEOUT ) {
+	  printf("crg_mmcm_read failed with adr %x\n", adr);
+	}
+
+	return crg_mmcm_dat_r_read();
+}
+#endif
 
 #define S7_MMCM_MAP_LEN  23
 // map order comes from xapp888 -- no explanation in docs for why the order is necessary, but it seems important
@@ -646,6 +672,20 @@ static int addr_map[S7_MMCM_MAP_LEN] = {0x28, 0x9, 0x8, 0xa, 0xb, 0xc, 0xd, 0xe,
 void mmcm_dump_code(void) {
   int i;
 
+#ifdef CSR_CRG_BASE
+  printf( "// CRG MMCM\n" );
+  printf( "int crg_mmcm[%d] = {", S7_MMCM_MAP_LEN * 2 );
+  for( i = 0; i < S7_MMCM_MAP_LEN; i++ ) {
+    if( addr_map[i] == 0x28 )  // this state substitutes to all 1's for DRP to work
+      printf( "0x28, 0xffff" );
+    else
+      printf( "0x%x, 0x%x", addr_map[i], crg_mmcm_read(addr_map[i]) );
+    if( i < S7_MMCM_MAP_LEN - 1 )
+      printf( ", " );
+  }
+  printf( "};\n" );
+#endif
+	
   printf( "// hdmi0 MMCM\n" );
   printf( "int hdmi0_mmcm[%d] = {", S7_MMCM_MAP_LEN * 2 );
   for( i = 0; i < S7_MMCM_MAP_LEN; i++ ) {
@@ -700,6 +740,7 @@ void mmcm_dump_code(void) {
 void mmcm_dump(void)
 {
 	int i;
+
 #ifdef CSR_HDMI_OUT0_BASE
 	printf("framebuffer MMCM:\r\n");
 	for(i=0;i<128;i++)
@@ -733,7 +774,7 @@ void mmcm_dump(void)
 	printf("\r\n");
 #endif
 #endif
-	
+
 }
 
 

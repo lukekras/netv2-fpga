@@ -35,6 +35,8 @@ int hdmi_in0_fb_index;
 
 #define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD 1
 
+#define ROUNDING 1
+
 unsigned int hdmi_in0_framebuffer_base(char n) {
 	return HDMI_IN0_FRAMEBUFFERS_BASE + n*HDMI_IN0_FRAMEBUFFERS_SIZE;
 }
@@ -163,7 +165,7 @@ void hdmi_in0_init_video(int hres, int vres)
 #endif
 
 #ifdef CSR_HDMI_IN0_DATA0_CAP_EYE_BIT_TIME_ADDR
-	int bit_time = (673 / iodelay_tap_duration) + 1;  // 18 if you should round up, not truncate
+	int bit_time = (673 / iodelay_tap_duration) + ROUNDING;  // 18 if you should round up, not truncate
 	printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
@@ -530,7 +532,7 @@ int hdmi_in0_phase_startup(int freq)
 
 	if( hdmi_in0_algorithm == 2 ) {
 	  int bit_time;
-	  bit_time = 10000000/(freq*iodelay_tap_duration) + 2; // need to round up on fractional to cover the whole bit time
+	  bit_time = 10000000/(freq*iodelay_tap_duration) + ROUNDING; // need to round up on fractional to cover the whole bit time
 	  printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	  hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	  hdmi_in0_data1_cap_eye_bit_time_write(bit_time);

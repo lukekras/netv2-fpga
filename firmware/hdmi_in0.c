@@ -135,6 +135,7 @@ void hdmi_in0_init_video(int hres, int vres)
 	} else {
 	  iodelay_tap_duration = 78;
 	}
+	printf( "idelay_freq = %d\n", idelay_freq );
 
 	hdmi_in0_clocking_mmcm_reset_write(1);
 	hdmi_in0_connected = hdmi_in0_locked = 0;

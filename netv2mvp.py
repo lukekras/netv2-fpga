@@ -806,8 +806,7 @@ class VideoOverlaySoC(BaseSoC):
         BaseSoC.__init__(self, platform, dqs_phase, *args, **kwargs)
 
         # # #
-#        self.add_constant("SCAN_PHASE", 1) # do a dqs phase scan at boot
-        self.add_constant("BOOT_MEMTEST", 1) # a slightly more involved memtest at boot
+        self.add_constant("BOOT_MEMTEST", 1) # add extra boot memory testing/characterization features to BIOS image
 
         pix_freq = 148.50e6
 

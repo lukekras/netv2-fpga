@@ -176,9 +176,9 @@ void hdmi_in0_init_video(int hres, int vres)
 	hdmi_in0_data1_cap_algorithm_write(2);
 	hdmi_in0_data2_cap_algorithm_write(2);
 	hdmi_in0_algorithm = 2;
-	hdmi_in0_data0_cap_auto_ctl_write(7);
-	hdmi_in0_data1_cap_auto_ctl_write(7);
-	hdmi_in0_data2_cap_auto_ctl_write(7);
+	hdmi_in0_data0_cap_auto_ctl_write(0x2f);
+	hdmi_in0_data1_cap_auto_ctl_write(0x2f);
+	hdmi_in0_data2_cap_auto_ctl_write(0x2f);
 #endif
 	
 }

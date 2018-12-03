@@ -927,6 +927,11 @@ class VideoOverlaySoC(BaseSoC):
         self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0]")
         self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0]")
         self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk1] -to [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0]")
+        # add _r variant (BUFR, same domain, different source)
+        self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks hdmi_in0_pix1p25x_r_clk] -to [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0]")
+        self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks hdmi_in0_pix1p25x_r_clk] -to [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0]")
+        self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks hdmi_in1_pix1p25x_r_clk] -to [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0]")
+        self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks hdmi_in1_pix1p25x_r_clk] -to [get_clocks soc_videooverlaysoc_hdmi_in1_mmcm_clk0]")
         # bitslip timing is also multi-cycle path
         self.platform.add_platform_command("set_multicycle_path 2 -setup -start -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0] -to [get_clocks hdmi_in0_pix1p25x_r_clk]")
         self.platform.add_platform_command("set_multicycle_path 1 -hold -from [get_clocks soc_videooverlaysoc_hdmi_in0_mmcm_clk0] -to [get_clocks hdmi_in0_pix1p25x_r_clk]")

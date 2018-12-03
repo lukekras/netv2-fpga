@@ -35,7 +35,7 @@ int main(void)
 
 	puts("\nNeTV2 software built "__DATE__" "__TIME__);
 
-	mmcm_dump_code(); // call this to dump the PLL config out based on vivado compiled constants
+	// mmcm_dump_code(); // call this to dump the PLL config out based on vivado compiled constants
 	
 	config_init();
 	time_init();

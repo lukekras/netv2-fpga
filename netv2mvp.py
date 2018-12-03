@@ -541,7 +541,7 @@ class BaseSoC(SoCSDRAM):
     }
     mem_map.update(SoCSDRAM.mem_map)
 
-    def __init__(self, platform, dqs_phase="90.0", spiflash="spiflash_1x", **kwargs):
+    def __init__(self, platform, dqs_phase="112.5", spiflash="spiflash_1x", **kwargs):
         if iodelay_clk_freq == int(400e6) or iodelay_clk_freq == int(200e6):
             clk_freq = int(100e6)
         elif iodelay_clk_freq == int(300e6):
@@ -1279,7 +1279,7 @@ def main():
         "-t", "--target", help="which FPGA environment to build for", choices=["base", "video_overlay", "pcie"], default="video_overlay"
     )
     parser.add_argument(
-        "-d", "--dqsphase", help="set DQS phase offset", choices=["45.0", "67.5", "90.0", "112.5", "135.0", "157.5", "180.0"], default="90.0"
+        "-d", "--dqsphase", help="set DQS phase offset", choices=["45.0", "67.5", "90.0", "112.5", "135.0", "157.5", "180.0"], default="112.5"
     )
     args = parser.parse_args()
 

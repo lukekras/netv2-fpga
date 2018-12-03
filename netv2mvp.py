@@ -362,8 +362,8 @@ class CRG(Module, AutoCSR):
                          i_CLKIN1=clk50_distbuf, i_CLKFBIN=pll_fb_bufg, o_CLKFBOUT=pll_fb,
 
                          # based on iodelay_clk_freq
-                         p_CLKOUT2_DIVIDE=refclk_freq*24/iodelay_clk_freq, p_CLKOUT2_PHASE=0.0,
-                         o_CLKOUT2=delayrefclk,
+                         p_CLKOUT0_DIVIDE=refclk_freq*24/iodelay_clk_freq, p_CLKOUT0_PHASE=0.0,
+                         o_CLKOUT0=delayrefclk,
                          ),
                 
                 # these generators should be on the right hand side (closest to DDR memory IOs)
@@ -434,9 +434,7 @@ class CRG(Module, AutoCSR):
 
                 # local IO clocks for DDR
                 Instance("BUFIO", i_I=pll_sys4x, o_O=self.cd_sys4x.clk),
-                #Instance("BUFR", i_I=pll_sys2x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="BYPASS"),
                 Instance("BUFR", i_I=pll_sys4x, o_O=self.cd_sys2x.clk, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
-                #Instance("BUFG", i_I=pll_sys2x_route, o_O=self.cd_sys2x_route.clk), #, i_CLR=0, i_CE=1, p_BUFR_DIVIDE="2"),
                 Instance("BUFIO", i_I=pll_sys4x_dqs, o_O=self.cd_sys4x_dqs.clk),
 
                 Instance("BUFIO", i_I=pll_sys4x_ac, o_O=self.cd_sys4x_ac.clk),
@@ -563,7 +561,7 @@ class BaseSoC(SoCSDRAM):
         self.submodules.xadc = xadc.XADC()
 
         self.crg.cd_sys.clk.attr.add("keep")
-        platform.add_period_constraint(self.crg.cd_sys.clk, period_ns(100e6))
+        platform.add_period_constraint(self.crg.cd_sys.clk, period_ns(clk_freq))
 
         # sdram
         self.submodules.ddrphy = a7ddrphy.A7DDRPHY(platform.request("ddram"), iodelay_clk_freq=iodelay_clk_freq)
@@ -853,9 +851,6 @@ class VideoOverlaySoC(BaseSoC):
             platform.request("hdmi_sda_over_dn").eq(0),
         ]
 
-        platform.add_platform_command(
-            "set_property CLOCK_DEDICATED_ROUTE FALSE [get_nets hdmi_in_ibufds/ob]")
-
         # extract timing info from HDMI input 0, and put it into a stream that we can pass later on as a genlock object
         self.hdmi_in0_timing = hdmi_in0_timing = stream.Endpoint(frame_timing_layout)
         self.sync.pix_o += [
@@ -921,7 +916,9 @@ class VideoOverlaySoC(BaseSoC):
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_rst]")
-        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix1p25x_rst]")
+        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix1p25x_r_rst]")
+        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_rst]")
+        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_r_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets pix_o_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_s7hdmioutencoderserializer_ce]") # derived from reset
 

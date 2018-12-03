@@ -216,7 +216,7 @@ void hdmi_in0_print_status(void)
 	hdmi_in0_data0_wer_update_write(1);
 	hdmi_in0_data1_wer_update_write(1);
 	hdmi_in0_data2_wer_update_write(1);
-	printf("hdmi_in0: ph:%4d(%2d/%2d)%02x %4d(%2d/%2d)%02x %4d(%2d/%2d)%02x // charsync:%d%d%d [%d %d %d] // WER:%3d %3d %3d // chansync:%d // res:%dx%d\r\n",
+	printf("hdmi_in0: ph:%4d(%2d/%2d)%02x %4d(%2d/%2d)%02x %4d(%2d/%2d)%02x // charsync:%d%d%d [%d %d %d] // eye:%08x %08x %08x // WER:%3d %3d %3d // chansync:%d // res:%dx%d\r\n",
 	       hdmi_in0_d0, hdmi_in0_data0_cap_cntvalueout_m_read(), hdmi_in0_data0_cap_cntvalueout_s_read(), hdmi_in0_data0_cap_lateness_read(),
 	       hdmi_in0_d1, hdmi_in0_data1_cap_cntvalueout_m_read(), hdmi_in0_data1_cap_cntvalueout_s_read(), hdmi_in0_data1_cap_lateness_read(),
 	       hdmi_in0_d2, hdmi_in0_data2_cap_cntvalueout_m_read(), hdmi_in0_data2_cap_cntvalueout_s_read(), hdmi_in0_data2_cap_lateness_read(),
@@ -227,12 +227,16 @@ void hdmi_in0_print_status(void)
 		hdmi_in0_data0_charsync_ctl_pos_read(),
 		hdmi_in0_data1_charsync_ctl_pos_read(),
 		hdmi_in0_data2_charsync_ctl_pos_read(),
+	       hdmi_in0_data0_cap_eye_read(),
+	       hdmi_in0_data1_cap_eye_read(),
+	       hdmi_in0_data2_cap_eye_read(),
 		hdmi_in0_data0_wer_value_read(),
 		hdmi_in0_data1_wer_value_read(),
 		hdmi_in0_data2_wer_value_read(),
 		hdmi_in0_chansync_channels_synced_read(),
 		hdmi_in0_resdetection_hres_read(),
-		hdmi_in0_resdetection_vres_read());
+	       hdmi_in0_resdetection_vres_read()
+	       );
 }
 
 static int hdmi_in0_eye[3];

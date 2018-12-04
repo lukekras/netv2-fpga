@@ -353,8 +353,8 @@ class CRG(Module, AutoCSR):
                 # and it allows us to set different bandwidths for the oscillator to optimize the jitter profiles
                 Instance("PLLE2_BASE",
                          p_STARTUP_WAIT="FALSE", o_LOCKED=pll_locked,
-                         p_BANDWIDTH="HIGH",  # HIGH minimizes VCO-origin jitter, at expense of transferred jitter from clock reference
-                         # picked with the theory that on-chip is high noise environment, and the crystal clock is quite low jitter already
+                         p_BANDWIDTH="LOW",  # HIGH minimizes VCO-origin jitter, at expense of transferred jitter from clock reference
+                         # LOW maximizes input jitter filtering at expense of greater static phase offsets
 
                          # VCO @ 1200 MHz per clocking wizard
                          p_REF_JITTER1=0.01, p_CLKIN1_PERIOD=(1/refclk_freq)*1e9,
@@ -1168,9 +1168,9 @@ class VideoOverlaySoC(BaseSoC):
 
         self.sync.pix_o += [
             If(rectangle.pipe_override.storage,
-                 self.hdmi_out0_phy.sink.c0.eq(self.hdmi_in0.data0_charsync.data),
-                 self.hdmi_out0_phy.sink.c1.eq(self.hdmi_in0.data1_charsync.data),
-                 self.hdmi_out0_phy.sink.c2.eq(self.hdmi_in0.data2_charsync.data),
+                 self.hdmi_out0_phy.sink.c0.eq(self.hdmi_in0.data0_cap.d),
+                 self.hdmi_out0_phy.sink.c1.eq(self.hdmi_in0.data1_cap.d),
+                 self.hdmi_out0_phy.sink.c2.eq(self.hdmi_in0.data2_cap.d),
             ).Elif(rect_on & (hdmi_out0_rgb_d.r >= rect_thresh) & (hdmi_out0_rgb_d.g >= rect_thresh) & (hdmi_out0_rgb_d.b >= rect_thresh),
                     self.hdmi_out0_phy.sink.c0.eq(encoder_blu.out),
                     self.hdmi_out0_phy.sink.c1.eq(encoder_grn.out),

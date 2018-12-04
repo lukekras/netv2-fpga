@@ -16,18 +16,18 @@ else
     echo "Run set to $1."
 fi
 
-if [ "$RUN" = "all" ] || [ "$RUN" = "100T" ]
-then
-    echo "Running user 100T FPGA build..."
-    ./netv2mvp.py -p 100 -t video_overlay
-    cp ./build/gateware/top.bit ./production-images/user-100.bit
-fi
-
 if [ "$RUN" = "all" ] || [ "$RUN" = "35T" ]
 then
     echo "Running user 35T FPGA build..."
     ./netv2mvp.py -p 35 -t video_overlay
     cp ./build/gateware/top.bit ./production-images/user-35.bit
+fi
+
+if [ "$RUN" = "all" ] || [ "$RUN" = "100T" ]
+then
+    echo "Running user 100T FPGA build..."
+    ./netv2mvp.py -p 100 -t video_overlay
+    cp ./build/gateware/top.bit ./production-images/user-100.bit
 fi
 
 echo "Running user firmware build..."

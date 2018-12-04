@@ -576,7 +576,7 @@ class BaseSoC(SoCSDRAM):
                             controller_settings=ControllerSettings(with_bandwidth=True,
                                                                    cmd_buffer_depth=8,
                                                                    with_refresh=True,
-                                                                   with_auto_precharge=False))
+                                                                   with_auto_precharge=True))
 
         # common led
         self.sys_led = Signal()
@@ -871,7 +871,7 @@ class VideoOverlaySoC(BaseSoC):
         self.submodules.hdmi_in1_freq = FrequencyMeter(period=self.clk_freq)
         # maybe this core gets precedence in round-robin arbitration, but this FIFO can be smaller than
         # the output FIFO. fifo_depth=256 was tested and works, but it turns out it doesn't save any
-        # area oven fifo_depth=512 due to the granularity of BRAM blocks. If some BRAMs are needed, try
+        # area over fifo_depth=512 due to the granularity of BRAM blocks. If some BRAMs are needed, try
         # trimming to 128 and see if that actually saves any space without breaking anything...
         self.submodules.hdmi_in1 = self.hdmi_in1 = HDMIIn(hdmi_in1_pads,
                                          self.sdram.crossbar.get_port(mode="write"),
@@ -1050,7 +1050,7 @@ class VideoOverlaySoC(BaseSoC):
         out_dram_port = self.sdram.crossbar.get_port(mode="read", clock_domain="pix_o", data_width=32, reverse=True)
         # this core seems to starve more than the in core, so the FIFO is deeper at 2048. A 1024 depth leads to some frame tearing
         # especially when the CPU activity is high when loaded at 1080p60
-        self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=2048, genlock_stream=hdmi_in0_timing)
+        self.submodules.hdmi_core_out0 = VideoOutCore(out_dram_port, mode="rgb", fifo_depth=4096, genlock_stream=hdmi_in0_timing)
 
         core_source_valid_d = Signal()
         core_source_data_d = Signal(32)

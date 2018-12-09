@@ -34,6 +34,7 @@ int hdmi_in0_fb_index;
 #define DEBUG
 
 #define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD 1
+#define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD_2 1000
 
 #define ROUNDING 3
 
@@ -606,11 +607,23 @@ static int hdmi_in0_get_wer(void){
 	wer += hdmi_in0_data1_wer_value_read();
 	wer += hdmi_in0_data2_wer_value_read();
 	return wer;
-} 
+}
+
+static int trip_hpd = 0;
 
 void hdmi_in0_service(int freq)
 {
 	static int last_event;
+	static int last_hpd;
+
+	if( elapsed(&last_hpd, SYSTEM_CLOCK_FREQUENCY/2) ) {
+	  if( trip_hpd > 48 ) {
+	    hdcp_hpd_ena_write(1);
+	    trip_hpd = 0;
+	  } else {
+	    hdcp_hpd_ena_write(0);
+	  }
+	}
 
 	if(hdmi_in0_connected) {
 		if(!hdmi_in0_edid_hpd_notif_read()) {
@@ -630,8 +643,12 @@ void hdmi_in0_service(int freq)
 					  if(hdmi_in0_debug)
 					    hdmi_in0_print_status();
 					  if(hdmi_in0_get_wer() >= HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD) {
-					    if( hdmi_in0_algorithm == 0 )
+					    if( hdmi_in0_algorithm != 2 )
 					  	  hdmi_in0_adjust_phase();
+					    else {
+					      if(hdmi_in0_get_wer() >= HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD_2)
+						trip_hpd++;
+					    }
 					  } else {
 					    has_converged = 1;
 					    converged_phase[0] = hdmi_in0_d0;
@@ -657,6 +674,7 @@ void hdmi_in0_service(int freq)
 			}
 		}
 	} else {
+     	        trip_hpd = 0;
 		if(hdmi_in0_edid_hpd_notif_read()) {
 			if(hdmi_in0_debug)
 				printf("hdmi_in0: connected\r\n");

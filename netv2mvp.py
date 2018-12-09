@@ -810,6 +810,8 @@ class VideoOverlaySoC(BaseSoC):
 
         platform.add_source(os.path.join("overlay", "delay_controller.v"))
         platform.add_source(os.path.join("overlay", "phsaligner.v"))
+        platform.add_source(os.path.join("overlay", "DRAM16XN.v"))
+        platform.add_source(os.path.join("overlay", "chnlbond.v"))
 
         ########## hdmi in 0 (raw tmds)
         hdmi_in0_pads = platform.request("hdmi_in", 0)
@@ -1242,14 +1244,24 @@ class VideoOverlaySoC(BaseSoC):
         from litescope import LiteScopeAnalyzer
 
         analyzer_signals = [
-#            self.sdram.controller.refresher.timer.done,
+            self.hdmi_in0.use_alt_bond,
+            self.hdmi_in0.syncpol.data_in0,
+            self.hdmi_in0.syncpol.valid_i,
+            self.hdmi_in0.syncpol.de,
+            self.hdmi_in0.syncpol.vsync,
+            c0_pix_o,
+            c1_pix_o,
+            c2_pix_o,
+            encoder_blu.out,
+            encoder_grn.out,
+            encoder_red.out,
         ]
         self.platform.add_false_path_constraints( # for I2C snoop -> HDCP, and also covers logic analyzer path when configured
            self.crg.cd_eth.clk,
            self.hdmi_in0.clocking.cd_pix_o.clk
         )
         # WHEN NOT USING ANALYZER, COMMENT OUT FOR FASTER COMPILE TIMES
-#        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 32, cd="sys", trigger_depth=8)
+#        self.submodules.analyzer = LiteScopeAnalyzer(analyzer_signals, 64, clock_domain="hdmi_in0_pix", trigger_depth=8)
 #    def do_exit(self, vns):
 #        self.analyzer.export_csv(vns, "test/analyzer.csv")
 

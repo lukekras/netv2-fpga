@@ -1015,6 +1015,14 @@ void ci_service(void)
 		  hdmi_in1_dma_slot1_status_write(DVISAMPLER_SLOT_LOADED);
 		} else if (strcmp(token, "override") == 0 ) {
 		  rectangle_pipe_override_read() ? rectangle_pipe_override_write(0) : rectangle_pipe_override_write(1);
+		} else if (strcmp(token, "a1") == 0 ) {
+		  hdmi_in0_data0_cap_auto_ctl_write(0x6f);
+		  hdmi_in0_data1_cap_auto_ctl_write(0x6f);
+		  hdmi_in0_data2_cap_auto_ctl_write(0x6f);
+		} else if (strcmp(token, "a2") == 0 ) {
+		  hdmi_in0_data0_cap_auto_ctl_write(0x2f);
+		  hdmi_in0_data1_cap_auto_ctl_write(0x2f);
+		  hdmi_in0_data2_cap_auto_ctl_write(0x2f);
 		} else {
 		  help_debug();
 		}

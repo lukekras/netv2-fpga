@@ -35,7 +35,7 @@ int hdmi_in0_fb_index;
 
 #define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD 1
 
-#define ROUNDING 2
+#define ROUNDING 3
 
 unsigned int hdmi_in0_framebuffer_base(char n) {
 	return HDMI_IN0_FRAMEBUFFERS_BASE + n*HDMI_IN0_FRAMEBUFFERS_SIZE;
@@ -176,9 +176,9 @@ void hdmi_in0_init_video(int hres, int vres)
 	hdmi_in0_data1_cap_algorithm_write(2);
 	hdmi_in0_data2_cap_algorithm_write(2);
 	hdmi_in0_algorithm = 2;
-	hdmi_in0_data0_cap_auto_ctl_write(0x2f);
-	hdmi_in0_data1_cap_auto_ctl_write(0x2f);
-	hdmi_in0_data2_cap_auto_ctl_write(0x2f);
+	hdmi_in0_data0_cap_auto_ctl_write(0x6f);
+	hdmi_in0_data1_cap_auto_ctl_write(0x6f);
+	hdmi_in0_data2_cap_auto_ctl_write(0x6f);
 #endif
 	
 }

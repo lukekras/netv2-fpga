@@ -56,7 +56,7 @@ extern void processor_update(void);
 static int has_converged = 1;
 static int converged_phase[3] = {2,-16,-16};
 
-int hdmi_in0_compute_auto_bt_val(int bit_rate_value) {
+static int hdmi_in0_compute_auto_bt_val(int bit_rate_value) {
   int del_mech = 1;
   int bt_val;
   int dcd_correct = 0;

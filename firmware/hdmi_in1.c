@@ -35,6 +35,7 @@ int hdmi_in1_fb_index = 0;
 #define DEBUG
 
 #define HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD 1
+#define HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD_2 100000
 
 #define HDMI_IN1_AUTO_CTL_DEFAULT   (0x6f)
 
@@ -716,13 +717,13 @@ void hdmi_in1_service(int freq)
 		    ticks_unconverged = 0;
 		  }
 		  
-		  if(((!hdmi_in1_data0_charsync_char_synced_read() || (hdmi_in1_data0_charsync_ctl_pos_read() != 0)) ||
-		      (!hdmi_in1_data1_charsync_char_synced_read() || (hdmi_in1_data1_charsync_ctl_pos_read() != 0)) ||
-		      (!hdmi_in1_data2_charsync_char_synced_read() || (hdmi_in1_data2_charsync_ctl_pos_read() != 0)) )
+		  if(((hdmi_in1_get_wer() >= HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD_2) ||
+		      (hdmi_in1_resdetection_hres_read() != 1920) ||
+		      (hdmi_in1_resdetection_vres_read() != 1080))
 		     && (did_reset == 0) ) {
 		    hdmi_in1_clocking_searchreset_write(1);
 		    hdmi_in1_clocking_mmcm_reset_write(1);
-		    did_reset = 72;
+		    did_reset = 55;
 		  }
 		  
 		}

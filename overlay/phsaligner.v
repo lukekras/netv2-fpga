@@ -41,7 +41,7 @@
 //              limitation shall apply not-withstanding the failure of the
 //              essential purpose of any limited remedies herein.
 //
-//  Copyright © 2006 Xilinx, Inc.
+//  Copyright ï¿½ 2006 Xilinx, Inc.
 //  All rights reserved
 //
 //////////////////////////////////////////////////////////////////////////////
@@ -220,7 +220,7 @@ module phsaligner # (
   reg [2:0] bitslip_cnt;
 
   always @ (posedge clk or posedge rst) begin
-    if(rst) begin
+    if(rst || search_again) begin
       psaligned          <=#1 1'b0; //phase alignment success flag
       bitslip            <=#1 1'b0;
       ctkn_srh_rst       <=#1 1'b1; //control token search timer reset

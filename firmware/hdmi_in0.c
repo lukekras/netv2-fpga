@@ -34,9 +34,11 @@ int hdmi_in0_fb_index;
 #define DEBUG
 
 #define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD 1
-#define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD_2 1000
+#define HDMI_IN0_PHASE_ADJUST_WER_THRESHOLD_2 3000
 
-#define ROUNDING 3
+#define HDMI_IN0_AUTO_CTL_DEFAULT   (0x6f)
+
+#define HDMI_IN0_ROUNDING 3
 
 unsigned int hdmi_in0_framebuffer_base(char n) {
 	return HDMI_IN0_FRAMEBUFFERS_BASE + n*HDMI_IN0_FRAMEBUFFERS_SIZE;
@@ -167,7 +169,7 @@ void hdmi_in0_init_video(int hres, int vres)
 #endif
 
 #ifdef CSR_HDMI_IN0_DATA0_CAP_EYE_BIT_TIME_ADDR
-	int bit_time = (673 / iodelay_tap_duration) + ROUNDING;  // 18 if you should round up, not truncate
+	int bit_time = (673 / iodelay_tap_duration) + HDMI_IN0_ROUNDING;  // 18 if you should round up, not truncate
 	printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
@@ -177,9 +179,9 @@ void hdmi_in0_init_video(int hres, int vres)
 	hdmi_in0_data1_cap_algorithm_write(2);
 	hdmi_in0_data2_cap_algorithm_write(2);
 	hdmi_in0_algorithm = 2;
-	hdmi_in0_data0_cap_auto_ctl_write(0x6f);
-	hdmi_in0_data1_cap_auto_ctl_write(0x6f);
-	hdmi_in0_data2_cap_auto_ctl_write(0x6f);
+	hdmi_in0_data0_cap_auto_ctl_write(HDMI_IN0_AUTO_CTL_DEFAULT);
+	hdmi_in0_data1_cap_auto_ctl_write(HDMI_IN0_AUTO_CTL_DEFAULT);
+	hdmi_in0_data2_cap_auto_ctl_write(HDMI_IN0_AUTO_CTL_DEFAULT);
 #endif
 	
 }
@@ -538,7 +540,7 @@ int hdmi_in0_phase_startup(int freq)
 
 	if( hdmi_in0_algorithm == 2 ) {
 	  int bit_time;
-	  bit_time = 10000000/(freq*iodelay_tap_duration) + ROUNDING; // need to round up on fractional to cover the whole bit time
+	  bit_time = 10000000/(freq*iodelay_tap_duration) + HDMI_IN0_ROUNDING; // need to round up on fractional to cover the whole bit time
 	  printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	  hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	  hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
@@ -662,6 +664,19 @@ void hdmi_in0_service(int freq)
 					hdmi_in0_locked = 0;
 					hdmi_in0_clear_framebuffers();
 				}
+
+#if 0				 // why doesn't this work??
+				if( hdmi_in0_data0_charsync_char_synced_read() &&
+				    (hdmi_in0_data0_charsync_ctl_pos_read() != 0) )
+				  hdmi_in0_data0_cap_searchreset_write(1);  // single bit, triggered only on write
+				if( hdmi_in0_data1_charsync_char_synced_read() &&
+				    (hdmi_in0_data1_charsync_ctl_pos_read() != 0) )
+				  hdmi_in0_data1_cap_searchreset_write(1);
+				if( hdmi_in0_data2_charsync_char_synced_read() &&
+				    (hdmi_in0_data2_charsync_ctl_pos_read() != 0) )
+				  hdmi_in0_data2_cap_searchreset_write(1);
+#endif
+				
 			} else {
 				if(hdmi_in0_clocking_locked_filtered()) {
 					if(hdmi_in0_debug)

@@ -910,16 +910,16 @@ class VideoOverlaySoC(BaseSoC):
         self.platform.add_platform_command(
             "create_clock -name hdmi_in1_clk_p -period 6.734006734006734 [get_nets hdmi_in1_clk_p]")
 
-        # exclude all generated clocks from the fundamental HDMI cloks and sys clocks
+        # exclude all generated clocks from the fundamental HDMI clocks and sys clocks
         self.platform.add_platform_command("set_clock_groups -group [get_clocks -include_generated_clocks -of [get_nets sys_clk]] -group [get_clocks -include_generated_clocks -of [get_nets hdmi_in0_clk_p]] -asynchronous")
         self.platform.add_platform_command("set_clock_groups -group [get_clocks -include_generated_clocks -of [get_nets sys_clk]] -group [get_clocks -include_generated_clocks -of [get_nets hdmi_in1_clk_p]] -asynchronous")
 
         # don't time the high-fanout reset paths
-        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix_rst]")
-        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_rst]")
+        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix_rst]")
+        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix1p25x_rst]")  # degenerate, throws warning
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in0_pix1p25x_r_rst]")
-        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_rst]")
+        self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_rst]")  # degenerate, throws warning
         self.platform.add_platform_command("set_false_path -through [get_nets hdmi_in1_pix1p25x_r_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets pix_o_rst]")
         self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_s7hdmioutencoderserializer_ce]") # derived from reset
@@ -942,7 +942,16 @@ class VideoOverlaySoC(BaseSoC):
 
         # This prevents the tri-state timing on DQ being a limiting path -- however, this should probably be a multi-cycle path
         # and not a straight false_path. May need to adjust if the DQ tri-state timing seems to be a problem
-        self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_videooverlaysoc_a7ddrphy_oe_dq]")
+        # self.platform.add_platform_command("set_false_path -through [get_nets soc_videooverlaysoc_videooverlaysoc_a7ddrphy_oe_dq]")
+        self.platform.add_platform_command("set_multicycle_path 2 -setup -through [get_nets soc_videooverlaysoc_videooverlaysoc_a7ddrphy_oe_dq]")
+        self.platform.add_platform_command("set_multicycle_path 1 -hold -through [get_nets soc_videooverlaysoc_videooverlaysoc_a7ddrphy_oe_dq]")
+
+        input_clock = "dqsin"     # Name of input clock
+        input_clock_period = 2.5  # Period of input clock (full-period)
+        for i in range(0,4):
+            self.platform.add_platform_command(
+                "create_clock -period " + str(input_clock_period) + " -name " + input_clock + str(i) + " [get_ports ddram_dqs_p[" + str(i) + "] ]"
+            )
 
         """
         ### Constrain the output DQS-to-data relationship so the DRAM data is centered correctly

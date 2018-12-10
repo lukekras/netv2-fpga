@@ -36,6 +36,10 @@ int hdmi_in1_fb_index = 0;
 
 #define HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD 1
 
+#define HDMI_IN1_AUTO_CTL_DEFAULT   (0x6f)
+
+#define HDMI_IN1_ROUNDING 3
+
 unsigned int hdmi_in1_framebuffer_base(char n) {
 	return HDMI_IN1_FRAMEBUFFERS_BASE + n*HDMI_IN1_FRAMEBUFFERS_SIZE;
 }
@@ -53,6 +57,74 @@ unsigned int isr_iter = 0;
 extern volatile int cur_irq_mask;
 
 #define SLOT1 1
+
+static int hdmi_in1_compute_auto_bt_val(int bit_rate_value) {
+  int del_mech = 1;
+  int bt_val;
+  int dcd_correct = 0;
+  
+  if(idelay_freq == 200000000) {
+    if(bit_rate_value > 1984) { bt_val = 0x07 ; del_mech = 1 ; }
+    else if (bit_rate_value > 1717) { bt_val = 0x08 ; del_mech = 1 ; }
+    else if (bit_rate_value > 1514) { bt_val = 0x09 ; del_mech = 1 ; }
+    else if (bit_rate_value > 1353) { bt_val = 0x0A ; del_mech = 1 ; }
+    else if (bit_rate_value > 1224) { bt_val = 0x0B ; del_mech = 1 ; }
+    else if (bit_rate_value > 1117) { bt_val = 0x0C ; del_mech = 1 ; }
+    else if (bit_rate_value > 1027) { bt_val = 0x0D ; del_mech = 1 ; }
+    else if (bit_rate_value > 951) { bt_val = 0x0E ; del_mech = 1 ; }
+    else if (bit_rate_value > 885) { bt_val = 0x0F ; del_mech = 1 ; }
+    else if (bit_rate_value > 828) { bt_val = 0x10 ; del_mech = 1 ; }
+    else if (bit_rate_value > 778) { bt_val = 0x11 ; del_mech = 1 ; }
+    else if (bit_rate_value > 733) { bt_val = 0x12 ; del_mech = 1 ; }
+    else if (bit_rate_value > 694) { bt_val = 0x13 ; del_mech = 1 ; }
+    else if (bit_rate_value > 658) { bt_val = 0x14 ; del_mech = 1 ; }
+    else if (bit_rate_value > 626) { bt_val = 0x15 ; del_mech = 1 ; }
+    else if (bit_rate_value > 597) { bt_val = 0x16 ; del_mech = 0 ; }
+    else if (bit_rate_value > 570) { bt_val = 0x17 ; del_mech = 0 ; }
+    else if (bit_rate_value > 546) { bt_val = 0x18 ; del_mech = 0 ; }
+    else if (bit_rate_value > 524) { bt_val = 0x19 ; del_mech = 0 ; }
+    else if (bit_rate_value > 503) { bt_val = 0x1A ; del_mech = 0 ; }
+    else if (bit_rate_value > 484) { bt_val = 0x1B ; del_mech = 0 ; }
+    else if (bit_rate_value > 466) { bt_val = 0x1C ; del_mech = 0 ; }
+    else if (bit_rate_value > 450) { bt_val = 0x1D ; del_mech = 0 ; }
+    else if (bit_rate_value > 435) { bt_val = 0x1E ; del_mech = 0 ; }
+    else { bt_val = 0x1F ; del_mech = 0 ; }// min bit rate 420 Mbps
+  } else if(idelay_freq == 300000000) {  
+    if      ((bit_rate_value > 2030 && dcd_correct == 0) || (bit_rate_value > 1845 && dcd_correct == 1)) { bt_val = 0x0A ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1836 && dcd_correct == 0) || (bit_rate_value > 1669 && dcd_correct == 1)) { bt_val = 0x0B ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1675 && dcd_correct == 0) || (bit_rate_value > 1523 && dcd_correct == 1)) { bt_val = 0x0C ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1541 && dcd_correct == 0) || (bit_rate_value > 1401 && dcd_correct == 1)) { bt_val = 0x0D ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1426 && dcd_correct == 0) || (bit_rate_value > 1297 && dcd_correct == 1)) { bt_val = 0x0E ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1328 && dcd_correct == 0) || (bit_rate_value > 1207 && dcd_correct == 1)) { bt_val = 0x0F ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1242 && dcd_correct == 0) || (bit_rate_value > 1129 && dcd_correct == 1)) { bt_val = 0x10 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1167 && dcd_correct == 0) || (bit_rate_value > 1061 && dcd_correct == 1)) { bt_val = 0x11 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1100 && dcd_correct == 0) || (bit_rate_value > 999 && dcd_correct == 1)) { bt_val = 0x12 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1040 && dcd_correct == 0) || (bit_rate_value > 946 && dcd_correct == 1)) { bt_val = 0x13 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 987 && dcd_correct == 0) || (bit_rate_value > 897 && dcd_correct == 1)) { bt_val = 0x14 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 939 && dcd_correct == 0) || (bit_rate_value > 853 && dcd_correct == 1)) { bt_val = 0x15 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 895 && dcd_correct == 0) || (bit_rate_value > 814 && dcd_correct == 1)) { bt_val = 0x16 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 855 && dcd_correct == 0) || (bit_rate_value > 777 && dcd_correct == 1)) { bt_val = 0x17 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 819 && dcd_correct == 0) || (bit_rate_value > 744 && dcd_correct == 1)) { bt_val = 0x18 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 785 && dcd_correct == 0) || (bit_rate_value > 714 && dcd_correct == 1)) { bt_val = 0x19 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 754 && dcd_correct == 0) || (bit_rate_value > 686 && dcd_correct == 1)) { bt_val = 0x1A ; del_mech = 0 ; }
+    else if ((bit_rate_value > 726 && dcd_correct == 0) || (bit_rate_value > 660 && dcd_correct == 1)) { bt_val = 0x1B ; del_mech = 0 ; }
+    else if ((bit_rate_value > 700 && dcd_correct == 0) || (bit_rate_value > 636 && dcd_correct == 1)) { bt_val = 0x1C ; del_mech = 0 ; }
+    else if ((bit_rate_value > 675 && dcd_correct == 0) || (bit_rate_value > 614 && dcd_correct == 1)) { bt_val = 0x1D ; del_mech = 0 ; }
+    else if ((bit_rate_value > 652 && dcd_correct == 0) || (bit_rate_value > 593 && dcd_correct == 1)) { bt_val = 0x1E ; del_mech = 0 ; }
+    else { bt_val = 0x1F ;   del_mech = 0 ; }// min bit rate 631 Mbps
+  } else if(idelay_freq == 400000000) {
+    // original heuristic
+    bt_val = (673 / iodelay_tap_duration) + HDMI_IN1_ROUNDING;
+    del_mech = 1;
+  } else {
+    printf( "error: unhandled idelay_freq value, input link convergence will not work\n" );
+  }
+
+  if( del_mech == 0 ) {
+    printf( "uhandled case: bitrate low enough that del_mech needs changing\n" );
+  }
+  return bt_val;
+}
 
 #ifdef HDMI_IN1_INTERRUPT
 void hdmi_in1_isr(void)
@@ -207,13 +279,17 @@ void hdmi_in1_init_video(int hres, int vres)
 
 #if 1
 #ifdef CSR_HDMI_IN1_DATA0_CAP_EYE_BIT_TIME_ADDR
-	int bit_time = (673 / iodelay_tap_duration) + 1;  // 18 if you should round up, not truncate
+#if 0
+	int bit_time = (673 / iodelay_tap_duration) + HDMI_IN1_ROUNDING;  // 18 if you should round up, not truncate
+#else
+	int bit_time = hdmi_in1_compute_auto_bt_val( 1450 );
+#endif
 	printf( "hdmi_in1: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	hdmi_in1_data0_cap_eye_bit_time_write(bit_time);
 	hdmi_in1_data1_cap_eye_bit_time_write(bit_time);
 	hdmi_in1_data2_cap_eye_bit_time_write(bit_time);
 
-#if 1
+#if 0
 	// empirically, this link does really well with variant 1 of algorithm 0; not sure why but seems quite robust
 	// SHIP IT
 	hdmi_in1_data0_cap_algorithm_write(1); // 1 is just delay criteria change, 2 is auto-delay machine
@@ -224,13 +300,13 @@ void hdmi_in1_init_video(int hres, int vres)
 	hdmi_in1_data1_cap_auto_ctl_write(7);
 	hdmi_in1_data2_cap_auto_ctl_write(7);
 #else
-	hdmi_in1_data0_cap_algorithm_write(2);
+	hdmi_in1_data0_cap_algorithm_write(2); // 1 is just delay criteria change, 2 is auto-delay machine
 	hdmi_in1_data1_cap_algorithm_write(2);
 	hdmi_in1_data2_cap_algorithm_write(2);
 	hdmi_in1_algorithm = 2;
-	hdmi_in1_data0_cap_auto_ctl_write(7);
-	hdmi_in1_data1_cap_auto_ctl_write(7);
-	hdmi_in1_data2_cap_auto_ctl_write(7);
+	hdmi_in1_data0_cap_auto_ctl_write(HDMI_IN1_AUTO_CTL_DEFAULT);
+	hdmi_in1_data1_cap_auto_ctl_write(HDMI_IN1_AUTO_CTL_DEFAULT);
+	hdmi_in1_data2_cap_auto_ctl_write(HDMI_IN1_AUTO_CTL_DEFAULT);
 #endif
 #endif
 #endif
@@ -271,7 +347,7 @@ void hdmi_in1_print_status(void)
 	hdmi_in1_data0_wer_update_write(1);
 	hdmi_in1_data1_wer_update_write(1);
 	hdmi_in1_data2_wer_update_write(1);
-	printf("hdmi_in1: ph:%4d(%2d/%2d)%02x %4d(%2d/%2d)%02x %4d(%2d/%2d)%02x // charsync:%d%d%d [%d %d %d] // WER:%3d %3d %3d // chansync:%d // res:%dx%d\r\n",
+	printf("hdmi_in1: ph:%4d(%2d/%2d)%02x %4d(%2d/%2d)%02x %4d(%2d/%2d)%02x // charsync:%d%d%d [%d %d %d] // eye:%08x %08x %08x // WER:%3d %3d %3d // chansync:%d // res:%dx%d\r\n",
 	       hdmi_in1_d0, hdmi_in1_data0_cap_cntvalueout_m_read(), hdmi_in1_data0_cap_cntvalueout_s_read(), hdmi_in1_data0_cap_lateness_read(),
 	       hdmi_in1_d1, hdmi_in1_data1_cap_cntvalueout_m_read(), hdmi_in1_data1_cap_cntvalueout_s_read(), hdmi_in1_data1_cap_lateness_read(),
 	       hdmi_in1_d2, hdmi_in1_data2_cap_cntvalueout_m_read(), hdmi_in1_data2_cap_cntvalueout_s_read(), hdmi_in1_data2_cap_lateness_read(),
@@ -282,6 +358,9 @@ void hdmi_in1_print_status(void)
 		hdmi_in1_data0_charsync_ctl_pos_read(),
 		hdmi_in1_data1_charsync_ctl_pos_read(),
 		hdmi_in1_data2_charsync_ctl_pos_read(),
+	       hdmi_in1_data0_cap_eye_read(),
+	       hdmi_in1_data1_cap_eye_read(),
+	       hdmi_in1_data2_cap_eye_read(),
 		hdmi_in1_data0_wer_value_read(),
 		hdmi_in1_data1_wer_value_read(),
 		hdmi_in1_data2_wer_value_read(),
@@ -478,8 +557,12 @@ int hdmi_in1_phase_startup(int freq)
 
 	attempts = 0;
 	if( hdmi_in1_algorithm == 2 ) {
+#if 0
 	  int bit_time;
-	  bit_time = 10000000/(freq*iodelay_tap_duration) + 1;
+	  bit_time = 10000000/(freq*iodelay_tap_duration) + HDMI_IN1_ROUNDING; // need to round up on fractional to cover the whole bit time
+#else
+	int bit_time = hdmi_in1_compute_auto_bt_val( freq / 10 );
+#endif
 	  printf( "hdmi_in1: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	  hdmi_in1_data0_cap_eye_bit_time_write(bit_time);
 	  hdmi_in1_data1_cap_eye_bit_time_write(bit_time);
@@ -583,11 +666,22 @@ void service_dma(void) {
 }
 #endif
 
+static int did_reset = 0;
+
 void hdmi_in1_service(int freq)
 {
 	static int last_event;
 	static int ticks_unconverged = 0;
+	static int last_reset;
 
+	if(elapsed(&last_reset, SYSTEM_CLOCK_FREQUENCY/32)) {
+	  if( did_reset ) {
+	    hdmi_in1_clocking_searchreset_write(0);
+	    hdmi_in1_clocking_mmcm_reset_write(0);
+	    did_reset--;
+	  }
+	}
+	
 	if(hdmi_in1_connected) {
 	  if(!hdmi_in1_edid_hpd_notif_read()) {
 	    if(hdmi_in1_debug)
@@ -604,8 +698,10 @@ void hdmi_in1_service(int freq)
 		  hdmi_in1_data0_wer_update_write(1);
 		  hdmi_in1_data1_wer_update_write(1);
 		  hdmi_in1_data2_wer_update_write(1);
+		  
 		  if(hdmi_in1_debug)
 		    hdmi_in1_print_status();
+		  
 		  if(hdmi_in1_get_wer() >= HDMI_IN1_PHASE_ADJUST_WER_THRESHOLD) {
 		    if( hdmi_in1_algorithm == 0 ) {
 		      hdmi_in1_adjust_phase();
@@ -619,6 +715,16 @@ void hdmi_in1_service(int freq)
 		  } else {
 		    ticks_unconverged = 0;
 		  }
+		  
+		  if(((!hdmi_in1_data0_charsync_char_synced_read() || (hdmi_in1_data0_charsync_ctl_pos_read() != 0)) ||
+		      (!hdmi_in1_data1_charsync_char_synced_read() || (hdmi_in1_data1_charsync_ctl_pos_read() != 0)) ||
+		      (!hdmi_in1_data2_charsync_char_synced_read() || (hdmi_in1_data2_charsync_ctl_pos_read() != 0)) )
+		     && (did_reset == 0) ) {
+		    hdmi_in1_clocking_searchreset_write(1);
+		    hdmi_in1_clocking_mmcm_reset_write(1);
+		    did_reset = 72;
+		  }
+		  
 		}
 	      } else {
 		if(hdmi_in1_debug)

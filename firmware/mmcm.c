@@ -419,7 +419,6 @@ void mmcm_config_for_clock(int freq)
 	 * FIXME: we also need to configure phase detector
 	 */
   //   mmcm_dump(); // used to extract params if we make changes to VCOs
-#if 0
 #ifdef CSR_HDMI_IN0_BASE
 	hdmi_in0_clocking_mmcm_reset_write(1);
 	if(freq < 3000)
@@ -448,7 +447,6 @@ void mmcm_config_for_clock(int freq)
 	else
 		printf("Frequency too high for input MMCMs\r\n");
 	hdmi_in1_clocking_mmcm_reset_write(0);
-#endif
 #endif
 }
 

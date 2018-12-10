@@ -56,6 +56,74 @@ extern void processor_update(void);
 static int has_converged = 1;
 static int converged_phase[3] = {2,-16,-16};
 
+int hdmi_in0_compute_auto_bt_val(int bit_rate_value) {
+  int del_mech = 1;
+  int bt_val;
+  int dcd_correct = 0;
+  
+  if(idelay_freq == 200000000) {
+    if(bit_rate_value > 1984) { bt_val = 0x07 ; del_mech = 1 ; }
+    else if (bit_rate_value > 1717) { bt_val = 0x08 ; del_mech = 1 ; }
+    else if (bit_rate_value > 1514) { bt_val = 0x09 ; del_mech = 1 ; }
+    else if (bit_rate_value > 1353) { bt_val = 0x0A ; del_mech = 1 ; }
+    else if (bit_rate_value > 1224) { bt_val = 0x0B ; del_mech = 1 ; }
+    else if (bit_rate_value > 1117) { bt_val = 0x0C ; del_mech = 1 ; }
+    else if (bit_rate_value > 1027) { bt_val = 0x0D ; del_mech = 1 ; }
+    else if (bit_rate_value > 951) { bt_val = 0x0E ; del_mech = 1 ; }
+    else if (bit_rate_value > 885) { bt_val = 0x0F ; del_mech = 1 ; }
+    else if (bit_rate_value > 828) { bt_val = 0x10 ; del_mech = 1 ; }
+    else if (bit_rate_value > 778) { bt_val = 0x11 ; del_mech = 1 ; }
+    else if (bit_rate_value > 733) { bt_val = 0x12 ; del_mech = 1 ; }
+    else if (bit_rate_value > 694) { bt_val = 0x13 ; del_mech = 1 ; }
+    else if (bit_rate_value > 658) { bt_val = 0x14 ; del_mech = 1 ; }
+    else if (bit_rate_value > 626) { bt_val = 0x15 ; del_mech = 1 ; }
+    else if (bit_rate_value > 597) { bt_val = 0x16 ; del_mech = 0 ; }
+    else if (bit_rate_value > 570) { bt_val = 0x17 ; del_mech = 0 ; }
+    else if (bit_rate_value > 546) { bt_val = 0x18 ; del_mech = 0 ; }
+    else if (bit_rate_value > 524) { bt_val = 0x19 ; del_mech = 0 ; }
+    else if (bit_rate_value > 503) { bt_val = 0x1A ; del_mech = 0 ; }
+    else if (bit_rate_value > 484) { bt_val = 0x1B ; del_mech = 0 ; }
+    else if (bit_rate_value > 466) { bt_val = 0x1C ; del_mech = 0 ; }
+    else if (bit_rate_value > 450) { bt_val = 0x1D ; del_mech = 0 ; }
+    else if (bit_rate_value > 435) { bt_val = 0x1E ; del_mech = 0 ; }
+    else { bt_val = 0x1F ; del_mech = 0 ; }// min bit rate 420 Mbps
+  } else if(idelay_freq == 300000000) {  
+    if      ((bit_rate_value > 2030 && dcd_correct == 0) || (bit_rate_value > 1845 && dcd_correct == 1)) { bt_val = 0x0A ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1836 && dcd_correct == 0) || (bit_rate_value > 1669 && dcd_correct == 1)) { bt_val = 0x0B ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1675 && dcd_correct == 0) || (bit_rate_value > 1523 && dcd_correct == 1)) { bt_val = 0x0C ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1541 && dcd_correct == 0) || (bit_rate_value > 1401 && dcd_correct == 1)) { bt_val = 0x0D ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1426 && dcd_correct == 0) || (bit_rate_value > 1297 && dcd_correct == 1)) { bt_val = 0x0E ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1328 && dcd_correct == 0) || (bit_rate_value > 1207 && dcd_correct == 1)) { bt_val = 0x0F ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1242 && dcd_correct == 0) || (bit_rate_value > 1129 && dcd_correct == 1)) { bt_val = 0x10 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1167 && dcd_correct == 0) || (bit_rate_value > 1061 && dcd_correct == 1)) { bt_val = 0x11 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1100 && dcd_correct == 0) || (bit_rate_value > 999 && dcd_correct == 1)) { bt_val = 0x12 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 1040 && dcd_correct == 0) || (bit_rate_value > 946 && dcd_correct == 1)) { bt_val = 0x13 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 987 && dcd_correct == 0) || (bit_rate_value > 897 && dcd_correct == 1)) { bt_val = 0x14 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 939 && dcd_correct == 0) || (bit_rate_value > 853 && dcd_correct == 1)) { bt_val = 0x15 ; del_mech = 1 ; }
+    else if ((bit_rate_value > 895 && dcd_correct == 0) || (bit_rate_value > 814 && dcd_correct == 1)) { bt_val = 0x16 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 855 && dcd_correct == 0) || (bit_rate_value > 777 && dcd_correct == 1)) { bt_val = 0x17 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 819 && dcd_correct == 0) || (bit_rate_value > 744 && dcd_correct == 1)) { bt_val = 0x18 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 785 && dcd_correct == 0) || (bit_rate_value > 714 && dcd_correct == 1)) { bt_val = 0x19 ; del_mech = 0 ; }
+    else if ((bit_rate_value > 754 && dcd_correct == 0) || (bit_rate_value > 686 && dcd_correct == 1)) { bt_val = 0x1A ; del_mech = 0 ; }
+    else if ((bit_rate_value > 726 && dcd_correct == 0) || (bit_rate_value > 660 && dcd_correct == 1)) { bt_val = 0x1B ; del_mech = 0 ; }
+    else if ((bit_rate_value > 700 && dcd_correct == 0) || (bit_rate_value > 636 && dcd_correct == 1)) { bt_val = 0x1C ; del_mech = 0 ; }
+    else if ((bit_rate_value > 675 && dcd_correct == 0) || (bit_rate_value > 614 && dcd_correct == 1)) { bt_val = 0x1D ; del_mech = 0 ; }
+    else if ((bit_rate_value > 652 && dcd_correct == 0) || (bit_rate_value > 593 && dcd_correct == 1)) { bt_val = 0x1E ; del_mech = 0 ; }
+    else { bt_val = 0x1F ;   del_mech = 0 ; }// min bit rate 631 Mbps
+  } else if(idelay_freq == 400000000) {
+    // original heuristic
+    bt_val = (673 / iodelay_tap_duration) + HDMI_IN0_ROUNDING;
+    del_mech = 1;
+  } else {
+    printf( "error: unhandled idelay_freq value, input link convergence will not work\n" );
+  }
+
+  if( del_mech == 0 ) {
+    printf( "uhandled case: bitrate low enough that del_mech needs changing\n" );
+  }
+  return bt_val;
+}
+
 #ifdef HDMI_IN0_INTERRUPT
 void hdmi_in0_isr(void)
 {
@@ -169,7 +237,12 @@ void hdmi_in0_init_video(int hres, int vres)
 #endif
 
 #ifdef CSR_HDMI_IN0_DATA0_CAP_EYE_BIT_TIME_ADDR
+
+#if 0
 	int bit_time = (673 / iodelay_tap_duration) + HDMI_IN0_ROUNDING;  // 18 if you should round up, not truncate
+#else
+	int bit_time = hdmi_in0_compute_auto_bt_val( 1450 );
+#endif
 	printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	hdmi_in0_data1_cap_eye_bit_time_write(bit_time);
@@ -539,8 +612,12 @@ int hdmi_in0_phase_startup(int freq)
 	attempts = 0;
 
 	if( hdmi_in0_algorithm == 2 ) {
+#if 0
 	  int bit_time;
 	  bit_time = 10000000/(freq*iodelay_tap_duration) + HDMI_IN0_ROUNDING; // need to round up on fractional to cover the whole bit time
+#else
+	int bit_time = hdmi_in0_compute_auto_bt_val( freq / 10 );
+#endif
 	  printf( "hdmi_in0: setting algo 2 eye time to %d IDELAY periods\n", bit_time );
 	  hdmi_in0_data0_cap_eye_bit_time_write(bit_time);
 	  hdmi_in0_data1_cap_eye_bit_time_write(bit_time);

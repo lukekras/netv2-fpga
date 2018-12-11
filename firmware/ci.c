@@ -263,6 +263,18 @@ static void json_disable(void)
 
 static void debug_ddr(void);
 
+static int countones(unsigned int val) {
+  int ones = 0;
+  int i;
+
+  while( val ) {
+    if( val & 1 )
+      ones++;
+    val >>= 1;
+  }
+  return ones;
+}
+
 extern int hdmi_in0_d0, hdmi_in0_d1, hdmi_in0_d2;
 extern int hdmi_in1_d0, hdmi_in1_d1, hdmi_in1_d2;
 static void json_print(void) {
@@ -284,14 +296,13 @@ static void json_print(void) {
 	  hdmi_in0_data0_charsync_char_synced_read(),
 	  hdmi_in0_data1_charsync_char_synced_read(),
 	  hdmi_in0_data2_charsync_char_synced_read());
-  wprintf("\"hdmi_Rx_sync_pos\" : \"%d %d %d\", \"hdmi_Rx_symbol_errors\" : \"%d %d %d\", \"hdmi_Rx_chansyncd\" : %d, ",
+  wprintf("\"hdmi_Rx_sync_pos\" : \"%d %d %d\", \"hdmi_Rx_symbol_errors\" : \"%d %d %d\", ",
 	  hdmi_in0_data0_charsync_ctl_pos_read(),
 	  hdmi_in0_data1_charsync_ctl_pos_read(),
 	  hdmi_in0_data2_charsync_ctl_pos_read(),
 	  hdmi_in0_data0_wer_value_read(),
 	  hdmi_in0_data1_wer_value_read(),
-	  hdmi_in0_data2_wer_value_read(),
-	  hdmi_in0_chansync_channels_synced_read());
+	  hdmi_in0_data2_wer_value_read());
   
   wprintf( "\"overlay_hres\" : %d, ", hdmi_in1_resdetection_hres_read() );
   wprintf( "\"overlay_vres\" : %d, ", hdmi_in1_resdetection_vres_read() );
@@ -305,14 +316,13 @@ static void json_print(void) {
 	  hdmi_in1_data0_charsync_char_synced_read(),
 	  hdmi_in1_data1_charsync_char_synced_read(),
 	  hdmi_in1_data2_charsync_char_synced_read());
-  wprintf("\"overlay_sync_pos\" : \"%d %d %d\", \"overlay_symbol_errors\" : \"%d %d %d\", \"overlay_chansyncd\" : %d, ",
+  wprintf("\"overlay_sync_pos\" : \"%d %d %d\", \"overlay_symbol_errors\" : \"%d %d %d\", ",
 	  hdmi_in1_data0_charsync_ctl_pos_read(),
 	  hdmi_in1_data1_charsync_ctl_pos_read(),
 	  hdmi_in1_data2_charsync_ctl_pos_read(),
 	  hdmi_in1_data0_wer_value_read(),
 	  hdmi_in1_data1_wer_value_read(),
-	  hdmi_in1_data2_wer_value_read(),
-	  hdmi_in1_chansync_channels_synced_read());
+	  hdmi_in1_data2_wer_value_read());
   
   sdram_controller_bandwidth_update_write(1);
   nr = sdram_controller_bandwidth_nreads_read();
@@ -322,6 +332,11 @@ static void json_print(void) {
   rdb = (nr*f >> (27 - log2(burstbits)))/1000000ULL;
   wrb = (nw*f >> (27 - log2(burstbits)))/1000000ULL;
   wprintf("\"ddr_read_Mbps\" : %d, \"ddr_write_Mbps\" : %d, ", rdb, wrb);
+  
+  wprintf("\"hdmi_Rx_eye_opening\" : \"%d %d %d\", ",
+	  countones(hdmi_in0_data0_cap_eye_read()), countones(hdmi_in0_data1_cap_eye_read()), countones(hdmi_in0_data2_cap_eye_read()) );
+  wprintf("\"overlay_eye_opening\" : \"%d %d %d\", ",
+	  countones(hdmi_in1_data0_cap_eye_read()), countones(hdmi_in1_data1_cap_eye_read()), countones(hdmi_in1_data2_cap_eye_read()) );
   
   wprintf( "\"fpga_die_temp\" : \"%dC\" ", (((unsigned int)xadc_temperature_read() * 503975) / 4096 - 273150) / 1000);
   

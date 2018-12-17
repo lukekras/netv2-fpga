@@ -1,7 +1,8 @@
 # NeTV2 LiteX Quickstart Guide
 
+Please check out the wiki (https://github.com/AlphamaxMedia/netv2-fpga/wiki) for more documentation on the NeTV2 project.
 
-These instructions can be used to quickly start development.
+These instructions can be used to quickly start FPGA development.
 
 *tl;dr:*
 

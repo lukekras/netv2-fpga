@@ -2,6 +2,8 @@
 
 Please check out the wiki (https://github.com/AlphamaxMedia/netv2-fpga/wiki) for more documentation on the NeTV2 project.
 
+*IMPORTANT*: If you want to connect a regular HDMI cable to the "overlay" port, you will need to re-build the FPGA with the correct pattern of differential pair inversions to match an HDMI cable. See https://github.com/AlphamaxMedia/netv2-fpga/blob/master/netv2mvp.py#L148. The pattern of inversions checked into the master branch targets the custom M2M jumper, which swaps some differential pairs to improve routing.
+
 These instructions can be used to quickly start FPGA development.
 
 *tl;dr:*

@@ -6,7 +6,7 @@ Please check out the wiki (https://github.com/AlphamaxMedia/netv2-fpga/wiki) for
 
 These instructions can be used to quickly start FPGA development.
 
-*tl;dr:*
+##tl;dr:##
 
 1. Check out this repo with `git clone --recurse-submodules https://github.com/xobs/netv2-fpga.git`.
 1. Ensure you have Python 3.5 or newer installed.

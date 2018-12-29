@@ -89,9 +89,9 @@ _io = [
             "K3 M2 K4 M3 J6 L5 J4 K6 "
             ),
             IOStandard("SSTL15_R"),
-            Misc("IN_TERM=UNTUNED_SPLIT_60")),  # alt is UNTUNED_SPLIT_60 but NONE seems to work better
-        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_60")),
-        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_60")),
+            Misc("IN_TERM=UNTUNED_SPLIT_40")),
+        Subsignal("dqs_p", Pins("E1 K2 P5 M1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_40")),
+        Subsignal("dqs_n", Pins("D1 J2 P4 L1"), IOStandard("DIFF_SSTL15_R"), Misc("IN_TERM=UNTUNED_SPLIT_40")),
         Subsignal("clk_p", Pins("R3"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("clk_n", Pins("R2"), IOStandard("DIFF_SSTL15_R")),
         Subsignal("cke", Pins("Y8"), IOStandard("SSTL15_R")),
@@ -290,7 +290,7 @@ def period_ns(freq):
     return 1e9/freq
 
 # valid values are 200e6, 300e6, and 400e6
-iodelay_clk_freq = int(300e6)  # set for multiple functions, valid values are 200e6 and 400e6
+iodelay_clk_freq = int(300e6)
 
 class CRG(Module, AutoCSR):
     def __init__(self, platform, use_ss=False, dqs_phase=112.5): # dqs_phase is multiple of 22.50

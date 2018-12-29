@@ -290,7 +290,7 @@ def period_ns(freq):
     return 1e9/freq
 
 # valid values are 200e6, 300e6, and 400e6
-iodelay_clk_freq = int(300e6)
+iodelay_clk_freq = int(400e6)
 
 class CRG(Module, AutoCSR):
     def __init__(self, platform, use_ss=False, dqs_phase=112.5): # dqs_phase is multiple of 22.50

@@ -1,7 +1,7 @@
 [submodule "deps/litex"]
 	path = deps/litex
-	url = https://github.com/alphamaxmedia/litex.git
-	branch = master
+	url = https://github.com/lukekras/litex.git
+	branch = new-tapcfg-source
 [submodule "deps/migen"]
 	path = deps/migen
 	url = https://github.com/alphamaxmedia/migen.git
